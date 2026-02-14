@@ -17,7 +17,8 @@ function mulberry32(seed: number): () => number {
  * Both partners will get the same seed → same picks.
  */
 export function getSeededRandom(dateStr?: string): () => number {
-    const today = dateStr ?? new Date().toISOString().split("T")[0]; // "2026-02-14"
+    // "fr-CA" format gives YYYY-MM-DD in local time
+    const today = dateStr ?? new Date().toLocaleDateString("fr-CA");
     // Convert date string to a numeric seed using a simple hash
     let hash = 0;
     for (let i = 0; i < today.length; i++) {
