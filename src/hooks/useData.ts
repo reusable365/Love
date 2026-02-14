@@ -103,6 +103,30 @@ export function useAddMemory() {
     });
 }
 
+export function useUpdateMemory() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({
+            id,
+            caption,
+        }: {
+            id: string;
+            caption: string;
+        }) => {
+            const sb = getSupabase();
+            const { error } = await sb
+                .from("memories")
+                .update({ caption })
+                .eq("id", id);
+            if (error) throw error;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["memories"] });
+        },
+    });
+}
+
 /* ═══════════════════════════════════════════════
    SOUNDTRACKS
    ═══════════════════════════════════════════════ */

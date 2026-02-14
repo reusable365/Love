@@ -9,10 +9,18 @@ import { extractYouTubeId } from "@/lib/youtube";
 
 interface MusicPlayerProps {
     soundtrack: Soundtrack;
+    isPlaying?: boolean;
+    onTogglePlay?: () => void;
 }
 
-export default function MusicPlayer({ soundtrack }: MusicPlayerProps) {
-    const [isPlaying, setIsPlaying] = useState(false);
+export default function MusicPlayer({ soundtrack, isPlaying: externalIsPlaying, onTogglePlay }: MusicPlayerProps) {
+    // Internal state only used if external props are not provided (backward compatibility)
+    const [internalIsPlaying, setInternalIsPlaying] = useState(false);
+
+    // Derived state: use external if available, else internal
+    const isControlled = typeof externalIsPlaying !== "undefined" && !!onTogglePlay;
+    const isPlaying = isControlled ? externalIsPlaying : internalIsPlaying;
+
     const [currentTime, setCurrentTime] = useState(0);
     const [duration, setDuration] = useState(0);
     const [error, setError] = useState(false);
@@ -53,27 +61,35 @@ export default function MusicPlayer({ soundtrack }: MusicPlayerProps) {
 
     useEffect(() => () => stopTracking(), [stopTracking]);
 
-    /* ─── Play / Pause toggle ─── */
-    const togglePlay = useCallback(() => {
+    /* ─── Sync with isPlaying state ─── */
+    useEffect(() => {
         if (isMP3 && audioRef.current) {
             if (isPlaying) {
-                audioRef.current.pause();
-                stopTracking();
-            } else {
                 audioRef.current.play().catch(() => setError(true));
                 startTracking();
-            }
-        } else if (ytPlayerRef.current) {
-            if (isPlaying) {
-                ytPlayerRef.current.pauseVideo();
-                stopTracking();
             } else {
+                audioRef.current.pause();
+                stopTracking();
+            }
+        } else if (ytPlayerRef.current && ytPlayerRef.current.playVideo) {
+            if (isPlaying) {
                 ytPlayerRef.current.playVideo();
                 startTracking();
+            } else {
+                ytPlayerRef.current.pauseVideo();
+                stopTracking();
             }
         }
-        setIsPlaying(!isPlaying);
     }, [isPlaying, isMP3, startTracking, stopTracking]);
+
+    /* ─── Play / Pause toggle ─── */
+    const handleTogglePlay = useCallback(() => {
+        if (isControlled && onTogglePlay) {
+            onTogglePlay();
+        } else {
+            setInternalIsPlaying(prev => !prev);
+        }
+    }, [isControlled, onTogglePlay]);
 
     /* ─── MP3 event handlers ─── */
     const onAudioLoaded = () => {
@@ -81,7 +97,11 @@ export default function MusicPlayer({ soundtrack }: MusicPlayerProps) {
     };
 
     const onAudioEnded = () => {
-        setIsPlaying(false);
+        if (isControlled && onTogglePlay && isPlaying) {
+            onTogglePlay(); // Notify parent to stop
+        } else {
+            setInternalIsPlaying(false);
+        }
         setCurrentTime(0);
         stopTracking();
     };
@@ -92,13 +112,23 @@ export default function MusicPlayer({ soundtrack }: MusicPlayerProps) {
     const onYTReady = (e: YouTubeEvent) => {
         ytPlayerRef.current = e.target;
         setDuration(e.target.getDuration());
+
+        // Sync initial state if needed
+        if (isPlaying) {
+            e.target.playVideo();
+            startTracking();
+        }
     };
 
     const onYTStateChange = (e: YouTubeEvent) => {
         const state = e.data;
         if (state === 0) {
             // Ended
-            setIsPlaying(false);
+            if (isControlled && onTogglePlay && isPlaying) {
+                onTogglePlay(); // Notify parent to stop
+            } else {
+                setInternalIsPlaying(false);
+            }
             setCurrentTime(0);
             stopTracking();
         }
@@ -168,13 +198,14 @@ export default function MusicPlayer({ soundtrack }: MusicPlayerProps) {
                             height: "1",
                             width: "1",
                             playerVars: {
-                                autoplay: 1,
+                                autoplay: 0, // Controlled by state
                                 controls: 0,
                                 disablekb: 1,
                                 fs: 0,
                                 modestbranding: 1,
                                 rel: 0,
                                 playsinline: 1,
+                                origin: typeof window !== "undefined" ? window.location.origin : undefined,
                             },
                         }}
                         onReady={onYTReady}
@@ -187,7 +218,10 @@ export default function MusicPlayer({ soundtrack }: MusicPlayerProps) {
             {/* Player UI */}
             <div className="flex items-center gap-4 mb-5">
                 {/* Play button */}
-                <div className="relative group cursor-pointer" onClick={togglePlay}>
+                <div className="relative group cursor-pointer" onClick={(e) => {
+                    e.stopPropagation(); // Prevent bubbling if nested
+                    handleTogglePlay();
+                }}>
                     <div className="absolute inset-0 bg-primary/40 rounded-full blur-lg group-hover:blur-xl transition-all duration-500 animate-pulse" />
                     <motion.button
                         whileTap={{ scale: 0.9 }}
@@ -263,7 +297,10 @@ export default function MusicPlayer({ soundtrack }: MusicPlayerProps) {
                 <div
                     ref={progressBarRef}
                     className="flex-1 h-1.5 bg-white/20 rounded-full overflow-hidden cursor-pointer"
-                    onClick={onSeek}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onSeek(e);
+                    }}
                 >
                     <motion.div
                         className="h-full bg-white rounded-full shadow-[0_0_12px_rgba(255,255,255,0.6)]"
