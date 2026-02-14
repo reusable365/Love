@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Camera, Video, Link as LinkIcon, Upload, Loader2 } from "lucide-react";
@@ -285,6 +285,30 @@ function MusicForm({ showToast }: { showToast: (msg: string, t?: "success" | "er
     const [uploading, setUploading] = useState(false);
 
     const youtubeId = youtubeUrl ? extractYouTubeId(youtubeUrl) : null;
+    const [fetchingMeta, setFetchingMeta] = useState(false);
+
+    // Auto-fill metadata when YouTube URL is valid
+    useEffect(() => {
+        if (youtubeId && !title && !artist) {
+            const fetchMeta = async () => {
+                setFetchingMeta(true);
+                try {
+                    const res = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${youtubeId}&format=json`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        setTitle(data.title || "");
+                        setArtist(data.author_name || "");
+                        showToast("Metadata found! 🎵", "success");
+                    }
+                } catch (e) {
+                    console.error("Failed to fetch youtube meta", e);
+                } finally {
+                    setFetchingMeta(false);
+                }
+            };
+            fetchMeta();
+        }
+    }, [youtubeId, title, artist, showToast]);
 
     const handleSubmit = async () => {
         if (!title.trim()) {
