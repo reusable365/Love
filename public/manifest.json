@@ -1,0 +1,17 @@
+{
+  "name": "Eternal Memories",
+  "short_name": "Eternal",
+  "description": "A daily love surprise shared between two hearts",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F5E6E0",
+  "theme_color": "#8E5B5B",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
