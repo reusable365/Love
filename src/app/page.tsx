@@ -15,6 +15,7 @@ import { getSeededRandom, seededPick } from "@/lib/seededRandom";
 import BackgroundOrbs from "@/components/BackgroundOrbs";
 import BottomNav from "@/components/BottomNav";
 import MusicPlayer from "@/components/MusicPlayer";
+import LandscapePhoto from "@/components/LandscapePhoto";
 import { Loader2, Heart, Edit2, Play, Pause, Sparkles } from "lucide-react";
 import type { Memory, Soundtrack } from "@/lib/supabase";
 
@@ -190,11 +191,14 @@ export default function DailySurprisePage() {
             transition={{ duration: 0.8, ease: "easeOut" }}
             onClick={toggleMusic}
           >
-            <img
-              src={photo.image_url}
-              alt={photo.caption || "Daily surprise"}
-              className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-            />
+            <div className="absolute inset-0">
+              <LandscapePhoto
+                src={photo.image_url}
+                alt={photo.caption || "Daily surprise"}
+                className="transition-transform duration-700 group-hover:scale-105"
+                wrapperClassName="absolute inset-0"
+              />
+            </div>
             <div className={`absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/60 transition-opacity duration-500 ${isMusicPlaying ? 'opacity-80' : 'opacity-100'}`} />
 
             {/* Play/Pause indicator overlay */}

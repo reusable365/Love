@@ -6,6 +6,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { getSupabase } from "@/lib/supabase";
 import { Heart, Loader2, Check } from "lucide-react";
 import { useSetDailyPickMemory } from "@/hooks/useData";
+import LandscapePhoto from "@/components/LandscapePhoto";
 
 interface InteractiveFlipCardProps {
     memory: {
@@ -74,11 +75,9 @@ export default function InteractiveFlipCard({ memory, className = "" }: Interact
                     className="absolute inset-0 backface-hidden rounded-[24px] overflow-hidden shadow-lg cursor-pointer bg-white"
                     onClick={handleFlip}
                 >
-                    <img
+                    <LandscapePhoto
                         src={memory.image_url}
                         alt="Memory"
-                        className="w-full h-full object-cover"
-                        loading="lazy"
                     />
 
                     {/* Overlay actions (only visible on front) */}
@@ -89,8 +88,8 @@ export default function InteractiveFlipCard({ memory, className = "" }: Interact
                                 setDailyPick.mutate(memory.id);
                             }}
                             className={`size-9 rounded-full flex items-center justify-center backdrop-blur-md transition-all ${memory.is_daily_pick
-                                    ? "bg-primary text-white shadow-lg scale-110"
-                                    : "bg-black/20 text-white/80 hover:bg-white/20"
+                                ? "bg-primary text-white shadow-lg scale-110"
+                                : "bg-black/20 text-white/80 hover:bg-white/20"
                                 }`}
                         >
                             {setDailyPick.isPending ? (

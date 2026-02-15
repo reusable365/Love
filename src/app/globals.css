@@ -161,6 +161,22 @@ body {
   }
 }
 
+@keyframes kenBurnsPan {
+
+  0%,
+  100% {
+    object-position: 20% center;
+  }
+
+  50% {
+    object-position: 80% center;
+  }
+}
+
+.landscape-kenburns {
+  animation: kenBurnsPan 12s ease-in-out infinite;
+}
+
 /* ─── Utility classes ─── */
 .animate-float {
   animation: float 6s ease-in-out infinite;
