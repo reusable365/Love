@@ -176,7 +176,7 @@ export default function MusicPlayer({ soundtrack, isPlaying: externalIsPlaying, 
     }
 
     return (
-        <div className="glass rounded-3xl p-6 shadow-2xl">
+        <div className="glass rounded-3xl p-6 landscape:p-3 shadow-2xl transition-all duration-300">
             {/* Hidden MP3 element */}
             {isMP3 && (
                 <audio
@@ -216,7 +216,7 @@ export default function MusicPlayer({ soundtrack, isPlaying: externalIsPlaying, 
             )}
 
             {/* Player UI */}
-            <div className="flex items-center gap-4 mb-5">
+            <div className="flex items-center gap-4 landscape:gap-2 mb-5 landscape:mb-2">
                 {/* Play button */}
                 <div className="relative group cursor-pointer" onClick={(e) => {
                     e.stopPropagation(); // Prevent bubbling if nested
@@ -225,7 +225,7 @@ export default function MusicPlayer({ soundtrack, isPlaying: externalIsPlaying, 
                     <div className="absolute inset-0 bg-primary/40 rounded-full blur-lg group-hover:blur-xl transition-all duration-500 animate-pulse" />
                     <motion.button
                         whileTap={{ scale: 0.9 }}
-                        className="relative size-16 bg-white rounded-full flex items-center justify-center shadow-xl text-primary hover:scale-110 transition-transform duration-300"
+                        className="relative size-16 landscape:size-10 bg-white rounded-full flex items-center justify-center shadow-xl text-primary hover:scale-110 transition-transform duration-300"
                         id="play-pause-btn"
                     >
                         <AnimatePresence mode="wait">
@@ -237,7 +237,7 @@ export default function MusicPlayer({ soundtrack, isPlaying: externalIsPlaying, 
                                     exit={{ scale: 0, rotate: 90 }}
                                     transition={{ duration: 0.2 }}
                                 >
-                                    <Pause className="size-7" fill="currentColor" />
+                                    <Pause className="size-7 landscape:size-5" fill="currentColor" />
                                 </motion.div>
                             ) : (
                                 <motion.div
@@ -247,7 +247,7 @@ export default function MusicPlayer({ soundtrack, isPlaying: externalIsPlaying, 
                                     exit={{ scale: 0, rotate: -90 }}
                                     transition={{ duration: 0.2 }}
                                 >
-                                    <Play className="size-7 ml-1" fill="currentColor" />
+                                    <Play className="size-7 landscape:size-5 ml-1" fill="currentColor" />
                                 </motion.div>
                             )}
                         </AnimatePresence>
@@ -256,10 +256,10 @@ export default function MusicPlayer({ soundtrack, isPlaying: externalIsPlaying, 
 
                 {/* Song info */}
                 <div className="flex-1 min-w-0">
-                    <h3 className="text-white font-[var(--font-dm-serif)] text-xl truncate leading-tight">
+                    <h3 className="text-white font-[var(--font-dm-serif)] text-xl landscape:text-base truncate leading-tight">
                         {soundtrack.title}
                     </h3>
-                    <p className="text-white/80 text-sm truncate mt-1">{soundtrack.artist}</p>
+                    <p className="text-white/80 text-sm landscape:text-xs truncate mt-1 landscape:mt-0">{soundtrack.artist}</p>
                 </div>
 
                 {/* Equalizer bars */}

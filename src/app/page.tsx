@@ -16,6 +16,7 @@ import BackgroundOrbs from "@/components/BackgroundOrbs";
 import BottomNav from "@/components/BottomNav";
 import MusicPlayer from "@/components/MusicPlayer";
 import LandscapePhoto from "@/components/LandscapePhoto";
+import MagicalText from "@/components/MagicalText";
 import { Loader2, Heart, Edit2, Play, Pause, Sparkles } from "lucide-react";
 import type { Memory, Soundtrack } from "@/lib/supabase";
 
@@ -154,33 +155,10 @@ export default function DailySurprisePage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3, duration: 0.6 }}
         >
-          <h1 className="text-2xl font-[var(--font-dm-serif)] text-white tracking-tight leading-tight text-center drop-shadow-lg">
-            Good morning, my love.
-            <br />
-            Today&apos;s surprise...
-          </h1>
+          <MagicalText className="text-2xl font-[var(--font-dm-serif)] text-white tracking-tight leading-tight text-center drop-shadow-lg" />
         </motion.div>
 
-        {/* New Surprise Button (Top Right) */}
-        <motion.div
-          className="absolute top-6 right-6 z-30"
-          initial={{ opacity: 0, scale: 0 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.5 }}
-        >
-          <button
-            onClick={handleNewSurprise}
-            disabled={setDailyMemory.isPending || setDailySoundtrack.isPending}
-            className="p-3 bg-white/20 backdrop-blur-md rounded-full text-white hover:bg-white/30 transition-all active:scale-95 shadow-lg border border-white/20"
-            title="Reveal a new surprise"
-          >
-            {setDailyMemory.isPending || setDailySoundtrack.isPending ? (
-              <Loader2 className="size-5 animate-spin" />
-            ) : (
-              <Sparkles className="size-5 fill-yellow-200 text-yellow-200" />
-            )}
-          </button>
-        </motion.div>
+        {/* New Surprise Button removed per user request */}
 
         {/* Photo container with click-to-play */}
         {photo && (
