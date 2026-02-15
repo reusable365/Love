@@ -54,7 +54,7 @@ export default function LandscapePhoto({
                 <img
                     src={src}
                     alt={alt}
-                    className={`w-full h-full object-contain drop-shadow-2xl shadow-black/50 ${className}`}
+                    className={`w-full h-full object-contain drop-shadow-2xl shadow-black/50 animate-subtle-zoom ${className}`}
                     loading="lazy"
                 />
             </div>
