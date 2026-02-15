@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useLandscapePhoto } from "@/hooks/useLandscapePhoto";
 
 interface LandscapePhotoProps {
@@ -8,32 +9,85 @@ interface LandscapePhotoProps {
     className?: string;
     /** Extra classes for the wrapper div */
     wrapperClassName?: string;
-    /** Duration of Ken Burns cycle in seconds (default: 12) */
+    /** Duration of Ken Burns cycle in seconds (default: 10) */
     kenBurnsDuration?: number;
     /** If true, skip landscape detection entirely */
     disableEffect?: boolean;
 }
 
 /**
- * Drop-in image replacement that intelligently handles landscape photos:
+ * Drop-in image replacement that handles landscape photos:
  * - Portrait photos → standard object-cover, no animation
- * - Landscape on mobile (gyroscope) → tilt-to-pan effect
- * - Landscape on desktop → smooth Ken Burns pan animation
+ * - Landscape photos → Ken Burns pan animation (CSS)
+ * - On touch devices: user can also drag to explore manually
  */
 export default function LandscapePhoto({
     src,
     alt,
     className = "",
     wrapperClassName = "",
-    kenBurnsDuration = 12,
+    kenBurnsDuration = 10,
     disableEffect = false,
 }: LandscapePhotoProps) {
-    const { isLandscape, mode, gyroOffset } = useLandscapePhoto(
-        disableEffect ? undefined : src
+    const { isLandscape } = useLandscapePhoto(disableEffect ? undefined : src);
+
+    // Touch drag state
+    const [isDragging, setIsDragging] = useState(false);
+    const [dragPosition, setDragPosition] = useState(50); // 0-100 percentage
+    const [isPaused, setIsPaused] = useState(false);
+    const touchStartRef = useRef<{ x: number; startPos: number } | null>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const resumeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // Touch handlers for drag-to-pan
+    const handleTouchStart = useCallback(
+        (e: React.TouchEvent) => {
+            if (!isLandscape) return;
+            const touch = e.touches[0];
+            touchStartRef.current = { x: touch.clientX, startPos: dragPosition };
+            setIsDragging(true);
+            setIsPaused(true);
+            // Clear any existing resume timer
+            if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current);
+        },
+        [isLandscape, dragPosition]
     );
 
+    const handleTouchMove = useCallback(
+        (e: React.TouchEvent) => {
+            if (!touchStartRef.current || !containerRef.current) return;
+            const touch = e.touches[0];
+            const containerWidth = containerRef.current.offsetWidth;
+            const deltaX = touch.clientX - touchStartRef.current.x;
+            // Convert pixel delta to percentage (inverted: drag left = see right side)
+            const deltaPercent = -(deltaX / containerWidth) * 100;
+            const newPos = Math.max(
+                0,
+                Math.min(100, touchStartRef.current.startPos + deltaPercent)
+            );
+            setDragPosition(newPos);
+        },
+        []
+    );
+
+    const handleTouchEnd = useCallback(() => {
+        setIsDragging(false);
+        touchStartRef.current = null;
+        // Resume Ken Burns after 3 seconds of no interaction
+        resumeTimerRef.current = setTimeout(() => {
+            setIsPaused(false);
+        }, 3000);
+    }, []);
+
+    // Cleanup timer on unmount
+    useEffect(() => {
+        return () => {
+            if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current);
+        };
+    }, []);
+
     // Portrait or disabled → simple image
-    if (!isLandscape || disableEffect || mode === "none") {
+    if (!isLandscape || disableEffect) {
         return (
             <img
                 src={src}
@@ -44,40 +98,30 @@ export default function LandscapePhoto({
         );
     }
 
-    // Gyroscope mode → translate based on tilt
-    if (mode === "gyroscope") {
-        // Map gyroOffset.x [-1, 1] to translate percentage
-        // Scale up to 170% so there's enough room to pan the full landscape
-        const translateX = gyroOffset.x * 35; // ±35% travel
-        const translateY = gyroOffset.y * 10; // subtle vertical
-
-        return (
-            <div
-                className={`overflow-hidden w-full h-full ${wrapperClassName}`}
-            >
-                <img
-                    src={src}
-                    alt={alt}
-                    className={`w-full h-full object-cover transition-transform duration-200 ease-out ${className}`}
-                    style={{
-                        transform: `scale(1.7) translate(${translateX}%, ${translateY}%)`,
-                    }}
-                    loading="lazy"
-                />
-            </div>
-        );
-    }
-
-    // Ken Burns mode → CSS animation
+    // Landscape → Ken Burns with optional touch drag
     return (
-        <img
-            src={src}
-            alt={alt}
-            className={`w-full h-full object-cover landscape-kenburns ${className}`}
-            style={{
-                animationDuration: `${kenBurnsDuration}s`,
-            }}
-            loading="lazy"
-        />
+        <div
+            ref={containerRef}
+            className={`overflow-hidden w-full h-full ${wrapperClassName}`}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+        >
+            <img
+                src={src}
+                alt={alt}
+                className={`w-full h-full object-cover ${isPaused ? "" : "landscape-kenburns"
+                    } ${className}`}
+                style={{
+                    ...(isPaused
+                        ? { objectPosition: `${dragPosition}% center` }
+                        : { animationDuration: `${kenBurnsDuration}s` }),
+                    // Smooth transition when dragging
+                    transition: isDragging ? "none" : "object-position 0.3s ease-out",
+                }}
+                loading="lazy"
+                draggable={false}
+            />
+        </div>
     );
 }

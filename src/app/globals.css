@@ -165,16 +165,16 @@ body {
 
   0%,
   100% {
-    object-position: 20% center;
+    object-position: 0% center;
   }
 
   50% {
-    object-position: 80% center;
+    object-position: 100% center;
   }
 }
 
 .landscape-kenburns {
-  animation: kenBurnsPan 12s ease-in-out infinite;
+  animation: kenBurnsPan 10s ease-in-out infinite;
 }
 
 /* ─── Utility classes ─── */
