@@ -43,20 +43,14 @@ export default function DailySurprisePage() {
     let photo: Memory | null = null;
     let song: Soundtrack | null = null;
 
-    // Priority 1: Manual daily pick from DB
-    if (dailyPickMemory) {
-      photo = dailyPickMemory;
-    }
-    if (dailyPickSoundtrack) {
-      song = dailyPickSoundtrack;
-    }
+    // Purely Automatic: Seeded random based on date
+    // We ignore DB manual picks (`dailyPickMemory`) to ensure it always rotates.
 
-    // Priority 2: Seeded random fallback
-    if (!photo && memories.length > 0) {
+    if (memories.length > 0) {
       const rng = getSeededRandom();
       photo = seededPick(memories, rng);
     }
-    if (!song && soundtracks.length > 0) {
+    if (soundtracks.length > 0) {
       const rng = getSeededRandom();
       // Advance the rng once so photo and song don't correlate on the same index
       rng();
@@ -64,7 +58,7 @@ export default function DailySurprisePage() {
     }
 
     return { photo, song };
-  }, [allMemories, allSoundtracks, dailyPickMemory, dailyPickSoundtrack]);
+  }, [allMemories, allSoundtracks]); // Removed dailyPick dependencies
 
   // Sync draft with photo caption
   useEffect(() => {
@@ -72,6 +66,22 @@ export default function DailySurprisePage() {
       setCaptionDraft(photo.caption);
     }
   }, [photo]);
+
+  // Midnight Watcher: Refresh the page if the day changes while open
+  useEffect(() => {
+    // We capture the date when the component mounts
+    const mountDate = new Date().toLocaleDateString("fr-CA");
+
+    // Check every minute if the date has changed
+    const interval = setInterval(() => {
+      const currentDate = new Date().toLocaleDateString("fr-CA");
+      if (currentDate !== mountDate) {
+        window.location.reload(); // Reload to fetch new daily seed
+      }
+    }, 60_000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   const isLoading = loadingMemories || loadingSoundtracks;
 
