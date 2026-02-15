@@ -125,8 +125,8 @@ export function useLandscapePhoto(src: string | undefined): LandscapePhotoState 
                 const deltaGamma = gamma - initialGamma;
                 const deltaBeta = beta - initialBeta;
 
-                const x = Math.max(-1, Math.min(1, deltaGamma / 30));
-                const y = Math.max(-1, Math.min(1, deltaBeta / 30));
+                const x = Math.max(-1, Math.min(1, deltaGamma / 12));
+                const y = Math.max(-1, Math.min(1, deltaBeta / 20));
 
                 setGyroOffset({ x, y });
             };

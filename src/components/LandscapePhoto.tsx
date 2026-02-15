@@ -47,9 +47,9 @@ export default function LandscapePhoto({
     // Gyroscope mode → translate based on tilt
     if (mode === "gyroscope") {
         // Map gyroOffset.x [-1, 1] to translate percentage
-        // We scale up the image to ~140% so there's room to pan
-        const translateX = gyroOffset.x * 20; // ±20% travel
-        const translateY = gyroOffset.y * 8; // subtle vertical
+        // Scale up to 170% so there's enough room to pan the full landscape
+        const translateX = gyroOffset.x * 35; // ±35% travel
+        const translateY = gyroOffset.y * 10; // subtle vertical
 
         return (
             <div
@@ -60,7 +60,7 @@ export default function LandscapePhoto({
                     alt={alt}
                     className={`w-full h-full object-cover transition-transform duration-200 ease-out ${className}`}
                     style={{
-                        transform: `scale(1.4) translate(${translateX}%, ${translateY}%)`,
+                        transform: `scale(1.7) translate(${translateX}%, ${translateY}%)`,
                     }}
                     loading="lazy"
                 />
