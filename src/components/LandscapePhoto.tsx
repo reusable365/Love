@@ -26,7 +26,7 @@ export default function LandscapePhoto({
     alt,
     className = "",
     wrapperClassName = "",
-    kenBurnsDuration = 10,
+    kenBurnsDuration = 13,
     disableEffect = false,
 }: LandscapePhotoProps) {
     const { isLandscape } = useLandscapePhoto(disableEffect ? undefined : src);
