@@ -183,7 +183,9 @@ export default function DailySurprisePage() {
   }
 
   // Formatted photo metadata
-  const photoDateStr = formatPhotoDate(photo?.photo_date);
+  // Fallback: If no metadata date, use the DB created_at date
+  const dateToDisplay = photo?.photo_date || photo?.created_at;
+  const photoDateStr = formatPhotoDate(dateToDisplay);
   const photoLoc = photo?.photo_location;
 
   /* ─── Main Daily Surprise View ─── */
