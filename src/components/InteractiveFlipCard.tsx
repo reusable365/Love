@@ -105,7 +105,7 @@ export default function InteractiveFlipCard({ memory, className = "" }: Interact
                     {/* Flip hint on hover */}
                     <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex justify-center pb-2">
                         <span className="text-white/90 text-xs font-medium tracking-wider uppercase border border-white/30 rounded-full px-3 py-1 backdrop-blur-sm">
-                            Tap to read
+                            Cliquer pour lire
                         </span>
                     </div>
                 </div>
@@ -126,7 +126,7 @@ export default function InteractiveFlipCard({ memory, className = "" }: Interact
                         {/* Paper header */}
                         <div className="flex justify-between items-center mb-4 border-b border-stone-200 pb-2">
                             <span className="text-[10px] uppercase tracking-widest text-stone-400 font-sans">
-                                Thinking of you
+                                J'ai pensé à toi
                             </span>
                             {justSaved && (
                                 <motion.div
@@ -136,7 +136,7 @@ export default function InteractiveFlipCard({ memory, className = "" }: Interact
                                     className="flex items-center gap-1 text-green-600 bg-green-50 px-2 py-0.5 rounded-full"
                                 >
                                     <Check className="size-3" />
-                                    <span className="text-[10px] font-medium">Saved</span>
+                                    <span className="text-[10px] font-medium">Sauvegardé</span>
                                 </motion.div>
                             )}
                         </div>
@@ -168,7 +168,7 @@ export default function InteractiveFlipCard({ memory, className = "" }: Interact
                                 >
                                     {caption || (
                                         <span className="text-stone-300 italic">
-                                            Click to write a memory...
+                                            Écrire un souvenir...
                                         </span>
                                     )}
                                 </div>
@@ -178,12 +178,12 @@ export default function InteractiveFlipCard({ memory, className = "" }: Interact
                         {/* Footer / Hint */}
                         <div className="mt-4 pt-2 border-t border-stone-200 flex justify-center">
                             <span className="text-[10px] text-stone-400 font-sans">
-                                {isEditing ? "Click outside to save" : "Tap text to edit"}
+                                {isEditing ? "Écrire puis cliquer ailleurs" : "Cliquer sur le texte pour éditer"}
                             </span>
                         </div>
                     </div>
                 </div>
-            </motion.div>
-        </div>
+            </motion.div >
+        </div >
     );
 }

@@ -9,12 +9,13 @@ import {
     useSetDailyPickSoundtrack,
     useClearDailyPickMemory,
     useClearDailyPickSoundtrack,
+    useToggleFavorite,
 } from "@/hooks/useData";
 import BackgroundOrbs from "@/components/BackgroundOrbs";
 import BottomNav from "@/components/BottomNav";
 import Toast from "@/components/Toast";
 import InteractiveFlipCard from "@/components/InteractiveFlipCard";
-import { Heart, Wand2, Search, Loader2 } from "lucide-react";
+import { Heart, HeartOff, Wand2, Search, Loader2 } from "lucide-react";
 import { extractYouTubeId, getYouTubeThumbnail } from "@/lib/youtube";
 import type { Memory, Soundtrack } from "@/lib/supabase";
 
@@ -27,6 +28,7 @@ export default function VaultPage() {
     const setDailySoundtrack = useSetDailyPickSoundtrack();
     const clearDailyMemory = useClearDailyPickMemory();
     const clearDailySoundtrack = useClearDailyPickSoundtrack();
+    const toggleFavorite = useToggleFavorite();
 
     const [mode, setMode] = useState<SelectionMode>("random");
     const [toast, setToast] = useState({ visible: false, message: "" });
@@ -42,20 +44,20 @@ export default function VaultPage() {
     const handleSetDailyPhoto = async (memory: Memory) => {
         if (memory.is_daily_pick) {
             await clearDailyMemory.mutateAsync();
-            showToast("Photo pick cleared — back to random! 🎲");
+            showToast("Sélection photo retirée — retour au hasard ! 🎲");
         } else {
             await setDailyMemory.mutateAsync(memory.id);
-            showToast("Selection saved for your partner! ❤️");
+            showToast("Photo sélectionnée pour demain ! ❤️");
         }
     };
 
     const handleSetDailySong = async (soundtrack: Soundtrack) => {
         if (soundtrack.is_daily_pick) {
             await clearDailySoundtrack.mutateAsync();
-            showToast("Song pick cleared — back to random! 🎲");
+            showToast("Sélection musique retirée — retour au hasard ! 🎲");
         } else {
             await setDailySoundtrack.mutateAsync(soundtrack.id);
-            showToast("Song selected for tomorrow! 🎵");
+            showToast("Musique sélectionnée pour demain ! 🎵");
         }
     };
 
@@ -65,7 +67,7 @@ export default function VaultPage() {
         if (newMode === "random") {
             await clearDailyMemory.mutateAsync();
             await clearDailySoundtrack.mutateAsync();
-            showToast("Back to random mode! The algorithm chooses 🎲");
+            showToast("Retour au mode aléatoire ! L'algorithme choisit 🎲");
         }
     };
 
@@ -143,7 +145,7 @@ export default function VaultPage() {
                             onClick={() => scrollToSection("songs-section")}
                             className="text-muted-foreground font-medium text-xs uppercase tracking-widest hover:text-primary transition-colors cursor-pointer"
                         >
-                            Music
+                            Musique
                         </button>
                     </div>
                 </div>
@@ -172,7 +174,7 @@ export default function VaultPage() {
                             type="text"
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            placeholder="Search memories & songs..."
+                            placeholder="Chercher des souvenirs & musiques..."
                             className="w-full mt-3 bg-input rounded-2xl px-4 py-3 text-foreground font-medium border border-border focus:outline-none focus:ring-2 focus:ring-primary/20 placeholder:text-muted-foreground/50"
                             autoFocus
                             id="search-input"
@@ -186,9 +188,9 @@ export default function VaultPage() {
                 <div className="glass-light rounded-2xl p-4 shadow-sm">
                     <div className="flex items-center justify-between">
                         <div className="flex flex-col">
-                            <p className="text-sm font-semibold text-foreground">Selection Mode</p>
+                            <p className="text-sm font-semibold text-foreground">Mode de sélection</p>
                             <p className="text-xs text-muted-foreground mt-0.5">
-                                Choose how to pick daily surprises
+                                Choisir le mode de surprise quotidienne
                             </p>
                         </div>
                         <div className="flex items-center gap-2 bg-background/50 rounded-full p-1">
@@ -200,7 +202,7 @@ export default function VaultPage() {
                                     }`}
                                 id="mode-random"
                             >
-                                Random
+                                Aléatoire
                             </button>
                             <button
                                 onClick={() => setMode("manual")}
@@ -210,7 +212,7 @@ export default function VaultPage() {
                                     }`}
                                 id="mode-manual"
                             >
-                                Manual
+                                Manuel
                             </button>
                         </div>
                     </div>
@@ -240,23 +242,24 @@ export default function VaultPage() {
                                         {favorites.map((memory) => (
                                             <div
                                                 key={memory.id}
-                                                className="flex-shrink-0 w-40 h-52 rounded-2xl overflow-hidden shadow-lg relative group"
+                                                className="flex-shrink-0 w-44 h-56 relative"
                                             >
-                                                <img
-                                                    src={memory.image_url}
-                                                    alt={memory.caption}
-                                                    className="h-full w-full object-cover"
-                                                    loading="lazy"
+                                                <InteractiveFlipCard
+                                                    memory={memory}
+                                                    className="w-full h-full"
                                                 />
-                                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-                                                <div className="absolute bottom-2 left-2 right-2">
-                                                    <p className="text-white text-xs font-medium truncate drop-shadow-md">
-                                                        {memory.caption || "Sans titre"}
-                                                    </p>
-                                                </div>
-                                                <div className="absolute top-2 right-2">
-                                                    <Heart className="size-4 text-pink-400 fill-pink-400 drop-shadow-md" />
-                                                </div>
+                                                {/* Unfavorite button */}
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        toggleFavorite.mutate({ id: memory.id, is_favorite: false });
+                                                        showToast("Retiré des Coup de 🩷");
+                                                    }}
+                                                    className="absolute top-2 left-2 z-30 size-8 rounded-full bg-black/30 backdrop-blur-md flex items-center justify-center border border-white/20 hover:bg-red-500/40 transition-all"
+                                                    title="Retirer des favoris"
+                                                >
+                                                    <HeartOff className="size-4 text-white" />
+                                                </button>
                                             </div>
                                         ))}
                                     </div>
@@ -267,12 +270,12 @@ export default function VaultPage() {
                         <div className="mb-8" id="photos-section">
                             <div className="flex items-center justify-between mb-4">
                                 <h2 className="text-xl font-[var(--font-dm-serif)] text-foreground">Photos</h2>
-                                <p className="text-xs text-muted-foreground">{selectedMemCount} selected</p>
+                                <p className="text-xs text-muted-foreground">{selectedMemCount} sélectionné{selectedMemCount > 1 ? 's' : ''}</p>
                             </div>
 
                             {filteredMemories.length === 0 ? (
                                 <div className="text-center py-12">
-                                    <p className="text-muted-foreground text-sm">No photos yet. Add some memories!</p>
+                                    <p className="text-muted-foreground text-sm">Pas encore de photos. Ajoute des souvenirs !</p>
                                 </div>
                             ) : (
                                 <div className="flex gap-4">
@@ -307,13 +310,13 @@ export default function VaultPage() {
                         {/* Songs Section */}
                         <div className="mt-8" id="songs-section">
                             <div className="flex items-center justify-between mb-4">
-                                <h2 className="text-xl font-[var(--font-dm-serif)] text-foreground">Songs</h2>
-                                <p className="text-xs text-muted-foreground">{selectedSongCount} selected</p>
+                                <h2 className="text-xl font-[var(--font-dm-serif)] text-foreground">Musique</h2>
+                                <p className="text-xs text-muted-foreground">{selectedSongCount} sélectionné{selectedSongCount > 1 ? 's' : ''}</p>
                             </div>
                             <div className="flex flex-col gap-3">
                                 {filteredSoundtracks.length === 0 ? (
                                     <div className="text-center py-8">
-                                        <p className="text-muted-foreground text-sm">No songs yet. Add your favorites!</p>
+                                        <p className="text-muted-foreground text-sm">Pas encore de musique. Ajoute tes chansons préférées !</p>
                                     </div>
                                 ) : (
                                     filteredSoundtracks.map((song) => (
@@ -380,7 +383,7 @@ function SongCard({
                         animate={{ scale: 1 }}
                         className="mt-1 px-2 py-0.5 rounded-full bg-accent text-white text-[9px] font-bold uppercase tracking-wide inline-block"
                     >
-                        Selected
+                        Sélectionné
                     </motion.div>
                 )}
             </div>
@@ -394,7 +397,7 @@ function SongCard({
                         }`}
                 >
                     <Wand2 className="size-4" />
-                    {isSelected ? "Selected" : "Set as Daily"}
+                    {isSelected ? "Sélectionné" : "Choisir"}
                 </motion.button>
             )}
         </motion.div>
