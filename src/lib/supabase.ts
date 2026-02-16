@@ -31,8 +31,11 @@ export interface Memory {
     image_url: string;
     caption: string;
     is_daily_pick: boolean;
+    is_favorite: boolean;
     user_id: string;
     created_at: string;
+    photo_date?: string;
+    photo_location?: string;
 }
 
 export interface Soundtrack {

@@ -81,17 +81,19 @@ export function useAddMemory() {
             image_url,
             caption,
             is_daily_pick = false,
+            photo_date,
+            photo_location,
         }: {
             image_url: string;
             caption: string;
             is_daily_pick?: boolean;
+            photo_date?: string;
+            photo_location?: string;
         }) => {
             const sb = getSupabase();
-            // No need to manually reset others, the DB trigger handles it.
-
             const { data, error } = await sb
                 .from("memories")
-                .insert({ image_url, caption, is_daily_pick })
+                .insert({ image_url, caption, is_daily_pick, photo_date, photo_location })
                 .select()
                 .single();
             if (error) throw error;
@@ -118,6 +120,24 @@ export function useUpdateMemory() {
             const { error } = await sb
                 .from("memories")
                 .update({ caption })
+                .eq("id", id);
+            if (error) throw error;
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["memories"] });
+        },
+    });
+}
+
+export function useToggleFavorite() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async ({ id, is_favorite }: { id: string; is_favorite: boolean }) => {
+            const sb = getSupabase();
+            const { error } = await sb
+                .from("memories")
+                .update({ is_favorite })
                 .eq("id", id);
             if (error) throw error;
         },

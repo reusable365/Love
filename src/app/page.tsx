@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { useMemo, useState, useEffect, useRef, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   useMemories,
   useSoundtracks,
@@ -9,30 +9,37 @@ import {
   useDailyPickSoundtrack,
   useUpdateMemory,
   useSetDailyPickMemory,
-  useSetDailyPickSoundtrack
+  useSetDailyPickSoundtrack,
+  useToggleFavorite,
 } from "@/hooks/useData";
 import { getSeededRandom, seededPick } from "@/lib/seededRandom";
+import { formatPhotoDate } from "@/lib/exifUtils";
 import BackgroundOrbs from "@/components/BackgroundOrbs";
 import BottomNav from "@/components/BottomNav";
 import MusicPlayer from "@/components/MusicPlayer";
 import { FlipCard } from "@/components/FlipCard";
 import MagicalText from "@/components/MagicalText";
-import { Loader2, Heart, Play, Pause } from "lucide-react";
+import { Loader2, Heart, MapPin, Calendar } from "lucide-react";
+import { differenceInDays } from "date-fns";
 import type { Memory, Soundtrack } from "@/lib/supabase";
 
 export default function DailySurprisePage() {
   const { data: allMemories, isLoading: loadingMemories } = useMemories();
   const { data: allSoundtracks, isLoading: loadingSoundtracks } = useSoundtracks();
-  // We don't use dailyPick data anymore for selection, but we could use it for syncing manually.
 
   const updateMemory = useUpdateMemory();
   const setDailyMemory = useSetDailyPickMemory();
   const setDailySoundtrack = useSetDailyPickSoundtrack();
+  const toggleFavorite = useToggleFavorite();
 
   // Interaction State
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
   const [isEditingCaption, setIsEditingCaption] = useState(false);
   const [captionDraft, setCaptionDraft] = useState("");
+
+  // Double-tap heart animation
+  const [showHeart, setShowHeart] = useState(false);
+  const lastTapRef = useRef(0);
 
   /* ─── Determine today's photo and song ─── */
   const { photo, song } = useMemo(() => {
@@ -76,6 +83,9 @@ export default function DailySurprisePage() {
 
   const isLoading = loadingMemories || loadingSoundtracks;
 
+  // Days counter
+  const daysCount = differenceInDays(new Date(), new Date(2002, 1, 10));
+
   /* ─── Handlers ─── */
   const toggleMusic = () => setIsMusicPlaying(!isMusicPlaying);
 
@@ -85,6 +95,23 @@ export default function DailySurprisePage() {
     }
     setIsEditingCaption(false);
   };
+
+  // Double-tap handler for Coup de 🩷
+  const handleDoubleTap = useCallback(() => {
+    if (!photo) return;
+    const now = Date.now();
+    const timeSinceLastTap = now - lastTapRef.current;
+    lastTapRef.current = now;
+
+    if (timeSinceLastTap < 350) {
+      // Double tap detected!
+      setShowHeart(true);
+      if (!photo.is_favorite) {
+        toggleFavorite.mutate({ id: photo.id, is_favorite: true });
+      }
+      setTimeout(() => setShowHeart(false), 1200);
+    }
+  }, [photo, toggleFavorite]);
 
   /* ─── Loading state ─── */
   if (isLoading) {
@@ -129,6 +156,10 @@ export default function DailySurprisePage() {
     );
   }
 
+  // Formatted photo metadata
+  const photoDateStr = formatPhotoDate(photo?.photo_date);
+  const photoLoc = photo?.photo_location;
+
   /* ─── Main Daily Surprise View ─── */
   return (
     <div className="flex flex-col h-dvh bg-background relative overflow-hidden">
@@ -140,6 +171,7 @@ export default function DailySurprisePage() {
         {photo && (
           <div
             className="flex-1 relative mx-4 my-4 rounded-[32px] overflow-hidden shadow-2xl"
+            onClick={handleDoubleTap}
           >
             <FlipCard
               memory={photo}
@@ -149,20 +181,82 @@ export default function DailySurprisePage() {
               onEditToggle={() => setIsEditingCaption(!isEditingCaption)}
               onSave={handleSaveCaption}
             >
-              {/* Front Overlay: Greeting */}
-              <div
-                className="absolute top-8 left-0 right-0 z-20 px-6 pointer-events-none"
-              >
-                <div className="flex flex-col items-center justify-center">
-                  <div className="text-6xl md:text-8xl font-[var(--font-dm-serif)] text-white drop-shadow-lg">
-                    {Math.floor((new Date().getTime() - new Date(2002, 1, 10).getTime()) / (1000 * 60 * 60 * 24))}
-                  </div>
-                  <div className="text-sm uppercase tracking-[0.3em] text-white/80 font-bold mt-2 drop-shadow-md">
-                    Jours Ensemble
+              {/* ═══ RECTO OVERLAY ═══ */}
+
+              {/* TOP — Photo date & location */}
+              {(photoDateStr || photoLoc) && (
+                <div className="absolute top-0 left-0 right-0 z-20 pointer-events-none">
+                  <div className="flex items-center justify-center gap-3 px-4 py-3 bg-gradient-to-b from-black/50 to-transparent">
+                    {photoDateStr && (
+                      <span className="flex items-center gap-1.5 text-white/90 text-xs font-medium">
+                        <Calendar className="size-3 opacity-70" />
+                        {photoDateStr}
+                      </span>
+                    )}
+                    {photoDateStr && photoLoc && (
+                      <span className="text-white/30">·</span>
+                    )}
+                    {photoLoc && (
+                      <span className="flex items-center gap-1.5 text-white/90 text-xs font-medium">
+                        <MapPin className="size-3 opacity-70" />
+                        {photoLoc}
+                      </span>
+                    )}
                   </div>
                 </div>
+              )}
+
+              {/* BOTTOM-LEFT — Days counter (small pill) */}
+              <div className="absolute bottom-4 left-4 z-20 pointer-events-none">
+                <div className="flex items-center gap-2 bg-black/30 backdrop-blur-md rounded-full px-4 py-2 border border-white/10">
+                  <span className="font-[var(--font-dm-serif)] text-2xl text-white/90 leading-none">
+                    {daysCount}
+                  </span>
+                  <span className="text-[9px] uppercase tracking-widest text-white/60 font-bold leading-tight">
+                    jours<br />ensemble
+                  </span>
+                </div>
               </div>
+
+              {/* BOTTOM-RIGHT — Favorite indicator */}
+              {photo.is_favorite && (
+                <div className="absolute bottom-4 right-4 z-20 pointer-events-none">
+                  <div className="bg-black/30 backdrop-blur-md rounded-full p-2 border border-white/10">
+                    <Heart className="size-4 text-pink-400 fill-pink-400" />
+                  </div>
+                </div>
+              )}
             </FlipCard>
+
+            {/* ❤️ DOUBLE-TAP HEART ANIMATION */}
+            <AnimatePresence>
+              {showHeart && (
+                <motion.div
+                  className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <motion.div
+                    initial={{ scale: 0, rotate: -10 }}
+                    animate={{ scale: 1, rotate: 0 }}
+                    exit={{ scale: 0.5, opacity: 0 }}
+                    transition={{
+                      type: "spring",
+                      stiffness: 400,
+                      damping: 15,
+                    }}
+                  >
+                    <Heart
+                      className="size-28 text-pink-500 drop-shadow-2xl"
+                      fill="currentColor"
+                      strokeWidth={0}
+                    />
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* Dim overlay when music plays */}
             <div className={`absolute inset-0 bg-black/20 pointer-events-none transition-opacity duration-500 ${isMusicPlaying ? 'opacity-100' : 'opacity-0'} z-10`} />
@@ -170,20 +264,15 @@ export default function DailySurprisePage() {
           </div>
         )}
 
-        {/* Music player at bottom (Global Overlay) */}
+        {/* Music player at bottom */}
         {song && (
-          <motion.div
-            className="absolute bottom-24 left-4 right-4 z-20"
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6, duration: 0.6 }}
-          >
+          <div className="absolute bottom-24 left-4 right-4 z-20">
             <MusicPlayer
               soundtrack={song}
               isPlaying={isMusicPlaying}
               onTogglePlay={toggleMusic}
             />
-          </motion.div>
+          </div>
         )}
       </div>
 

@@ -10,6 +10,7 @@ import Toast from "@/components/Toast";
 import { useAddMemory, useAddSoundtrack } from "@/hooks/useData";
 import { getSupabase } from "@/lib/supabase";
 import { extractYouTubeId, getYouTubeThumbnail } from "@/lib/youtube";
+import { extractPhotoMetadata, formatPhotoDate } from "@/lib/exifUtils";
 
 type TabType = "photo" | "music";
 type MusicTypeChoice = "youtube" | "mp3";
@@ -134,14 +135,25 @@ function PhotoForm({ showToast }: { showToast: (msg: string, t?: "success" | "er
     const [caption, setCaption] = useState("");
     const [forceDaily, setForceDaily] = useState(false);
     const [uploading, setUploading] = useState(false);
+    const [photoDate, setPhotoDate] = useState<string | undefined>();
+    const [photoLocation, setPhotoLocation] = useState<string | undefined>();
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const f = e.target.files?.[0];
         if (!f) return;
         setFile(f);
         const reader = new FileReader();
         reader.onload = () => setPreview(reader.result as string);
         reader.readAsDataURL(f);
+
+        // Extract EXIF metadata
+        try {
+            const meta = await extractPhotoMetadata(f);
+            if (meta.date) setPhotoDate(meta.date.toISOString());
+            if (meta.location) setPhotoLocation(meta.location);
+        } catch (err) {
+            console.warn("EXIF extraction failed:", err);
+        }
     };
 
     const handleSubmit = async () => {
@@ -170,6 +182,8 @@ function PhotoForm({ showToast }: { showToast: (msg: string, t?: "success" | "er
                 image_url: urlData.publicUrl,
                 caption,
                 is_daily_pick: forceDaily,
+                photo_date: photoDate,
+                photo_location: photoLocation,
             });
 
             showToast("Photo added to your collection! 📸");
@@ -177,6 +191,8 @@ function PhotoForm({ showToast }: { showToast: (msg: string, t?: "success" | "er
             setFile(null);
             setCaption("");
             setForceDaily(false);
+            setPhotoDate(undefined);
+            setPhotoLocation(undefined);
         } catch (err) {
             console.error(err);
             showToast("Failed to upload photo. Please try again.", "error");

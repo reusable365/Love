@@ -126,6 +126,13 @@ export default function VaultPage() {
                     </h1>
                     <div className="flex gap-4">
                         <button
+                            onClick={() => scrollToSection("favorites-section")}
+                            className="text-muted-foreground font-medium text-xs uppercase tracking-widest hover:text-primary transition-colors cursor-pointer"
+                        >
+                            Coup de 🩷
+                        </button>
+                        <span className="text-muted-foreground/30 text-xs">•</span>
+                        <button
                             onClick={() => scrollToSection("photos-section")}
                             className="text-muted-foreground font-medium text-xs uppercase tracking-widest hover:text-primary transition-colors cursor-pointer"
                         >
@@ -218,6 +225,44 @@ export default function VaultPage() {
                     </div>
                 ) : (
                     <>
+                        {/* ═══ Coup de 🩷 Section ═══ */}
+                        {(() => {
+                            const favorites = memories.filter(m => m.is_favorite);
+                            if (favorites.length === 0) return null;
+                            return (
+                                <div className="mb-8" id="favorites-section">
+                                    <div className="flex items-center gap-2 mb-4">
+                                        <Heart className="size-5 text-pink-400 fill-pink-400" />
+                                        <h2 className="text-xl font-[var(--font-dm-serif)] text-foreground">Coup de 🩷</h2>
+                                        <span className="text-xs text-muted-foreground ml-auto">{favorites.length} favoris</span>
+                                    </div>
+                                    <div className="flex gap-3 overflow-x-auto pb-4 -mx-1 px-1 custom-scrollbar">
+                                        {favorites.map((memory) => (
+                                            <div
+                                                key={memory.id}
+                                                className="flex-shrink-0 w-40 h-52 rounded-2xl overflow-hidden shadow-lg relative group"
+                                            >
+                                                <img
+                                                    src={memory.image_url}
+                                                    alt={memory.caption}
+                                                    className="h-full w-full object-cover"
+                                                    loading="lazy"
+                                                />
+                                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                                                <div className="absolute bottom-2 left-2 right-2">
+                                                    <p className="text-white text-xs font-medium truncate drop-shadow-md">
+                                                        {memory.caption || "Sans titre"}
+                                                    </p>
+                                                </div>
+                                                <div className="absolute top-2 right-2">
+                                                    <Heart className="size-4 text-pink-400 fill-pink-400 drop-shadow-md" />
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            );
+                        })()}
                         {/* Photos Section */}
                         <div className="mb-8" id="photos-section">
                             <div className="flex items-center justify-between mb-4">
