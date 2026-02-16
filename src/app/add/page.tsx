@@ -3,11 +3,11 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Camera, Video, Link as LinkIcon, Upload, Loader2 } from "lucide-react";
+import { ArrowLeft, Camera, Video, Link as LinkIcon, Upload, Loader2, AlertTriangle } from "lucide-react";
 import BackgroundOrbs from "@/components/BackgroundOrbs";
 import BottomNav from "@/components/BottomNav";
 import Toast from "@/components/Toast";
-import { useAddMemory, useAddSoundtrack } from "@/hooks/useData";
+import { useAddMemory, useAddSoundtrack, useMemories, useSoundtracks } from "@/hooks/useData";
 import { getSupabase } from "@/lib/supabase";
 import { extractYouTubeId, getYouTubeThumbnail } from "@/lib/youtube";
 import { extractPhotoMetadata, formatPhotoDate } from "@/lib/exifUtils";
@@ -129,6 +129,7 @@ function TabButton({
    ═══════════════════════════════════════ */
 function PhotoForm({ showToast }: { showToast: (msg: string, t?: "success" | "error") => void }) {
     const addMemory = useAddMemory();
+    const { data: existingMemories = [] } = useMemories();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [preview, setPreview] = useState<string | null>(null);
     const [file, setFile] = useState<File | null>(null);
@@ -137,11 +138,13 @@ function PhotoForm({ showToast }: { showToast: (msg: string, t?: "success" | "er
     const [uploading, setUploading] = useState(false);
     const [photoDate, setPhotoDate] = useState<string | undefined>();
     const [photoLocation, setPhotoLocation] = useState<string | undefined>();
+    const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
 
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const f = e.target.files?.[0];
         if (!f) return;
         setFile(f);
+        setDuplicateWarning(null);
         const reader = new FileReader();
         reader.onload = () => setPreview(reader.result as string);
         reader.readAsDataURL(f);
@@ -149,7 +152,22 @@ function PhotoForm({ showToast }: { showToast: (msg: string, t?: "success" | "er
         // Extract EXIF metadata
         try {
             const meta = await extractPhotoMetadata(f);
-            if (meta.date) setPhotoDate(meta.date.toISOString());
+            if (meta.date) {
+                const isoDate = meta.date.toISOString();
+                setPhotoDate(isoDate);
+
+                // Check for duplicate by EXIF date (same day = likely same photo)
+                const photoDay = isoDate.slice(0, 10); // YYYY-MM-DD
+                const duplicate = existingMemories.find(m => {
+                    if (!m.photo_date) return false;
+                    return m.photo_date.slice(0, 10) === photoDay;
+                });
+                if (duplicate) {
+                    setDuplicateWarning(
+                        `⚠️ Une photo du même jour (${new Date(isoDate).toLocaleDateString("fr-FR")}) est déjà dans le coffre${duplicate.caption ? ` : "${duplicate.caption}"` : ""}`
+                    );
+                }
+            }
             if (meta.location) setPhotoLocation(meta.location);
         } catch (err) {
             console.warn("EXIF extraction failed:", err);
@@ -232,6 +250,25 @@ function PhotoForm({ showToast }: { showToast: (msg: string, t?: "success" | "er
                 )}
             </div>
 
+            {/* Duplicate warning */}
+            <AnimatePresence>
+                {duplicateWarning && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -10, height: 0 }}
+                        animate={{ opacity: 1, y: 0, height: "auto" }}
+                        exit={{ opacity: 0, y: -10, height: 0 }}
+                        className="flex items-start gap-3 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300"
+                    >
+                        <AlertTriangle className="size-5 flex-shrink-0 mt-0.5" />
+                        <div className="flex-1">
+                            <p className="text-sm font-medium">{duplicateWarning}</p>
+                            <p className="text-xs mt-1 opacity-70">Tu peux quand même l'ajouter si tu le souhaites.</p>
+                        </div>
+                        <button onClick={() => setDuplicateWarning(null)} className="text-xs opacity-60 hover:opacity-100">✕</button>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
             {/* Caption */}
             <div className="flex flex-col gap-2">
                 <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">
@@ -292,6 +329,7 @@ function PhotoForm({ showToast }: { showToast: (msg: string, t?: "success" | "er
    ═══════════════════════════════════════ */
 function MusicForm({ showToast }: { showToast: (msg: string, t?: "success" | "error") => void }) {
     const addSoundtrack = useAddSoundtrack();
+    const { data: existingSoundtracks = [] } = useSoundtracks();
     const [musicType, setMusicType] = useState<MusicTypeChoice>("youtube");
     const [youtubeUrl, setYoutubeUrl] = useState("");
     const [title, setTitle] = useState("");
@@ -299,6 +337,7 @@ function MusicForm({ showToast }: { showToast: (msg: string, t?: "success" | "er
     const [forceDaily, setForceDaily] = useState(false);
     const [mp3File, setMp3File] = useState<File | null>(null);
     const [uploading, setUploading] = useState(false);
+    const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
 
     const youtubeId = youtubeUrl ? extractYouTubeId(youtubeUrl) : null;
     const [fetchingMeta, setFetchingMeta] = useState(false);
@@ -308,6 +347,7 @@ function MusicForm({ showToast }: { showToast: (msg: string, t?: "success" | "er
         if (youtubeId && !title && !artist) {
             const fetchMeta = async () => {
                 setFetchingMeta(true);
+                setDuplicateWarning(null);
                 try {
                     const res = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${youtubeId}&format=json`);
                     if (res.ok) {
@@ -321,10 +361,22 @@ function MusicForm({ showToast }: { showToast: (msg: string, t?: "success" | "er
                 } finally {
                     setFetchingMeta(false);
                 }
+
+                // Check for duplicate YouTube video
+                const existingDup = existingSoundtracks.find(s => {
+                    if (s.type !== "youtube") return false;
+                    const existingId = extractYouTubeId(s.src_url);
+                    return existingId === youtubeId;
+                });
+                if (existingDup) {
+                    setDuplicateWarning(
+                        `⚠️ Cette musique est déjà dans le coffre : "${existingDup.title}" par ${existingDup.artist}`
+                    );
+                }
             };
             fetchMeta();
         }
-    }, [youtubeId, title, artist, showToast]);
+    }, [youtubeId, title, artist, showToast, existingSoundtracks]);
 
     const handleSubmit = async () => {
         if (!title.trim()) {
@@ -440,6 +492,25 @@ function MusicForm({ showToast }: { showToast: (msg: string, t?: "success" | "er
                                 </div>
                             </div>
                         </div>
+
+                        {/* Duplicate warning */}
+                        <AnimatePresence>
+                            {duplicateWarning && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: -10, height: 0 }}
+                                    animate={{ opacity: 1, y: 0, height: "auto" }}
+                                    exit={{ opacity: 0, y: -10, height: 0 }}
+                                    className="flex items-start gap-3 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300"
+                                >
+                                    <AlertTriangle className="size-5 flex-shrink-0 mt-0.5" />
+                                    <div className="flex-1">
+                                        <p className="text-sm font-medium">{duplicateWarning}</p>
+                                        <p className="text-xs mt-1 opacity-70">Tu peux quand même l'ajouter si tu le souhaites.</p>
+                                    </div>
+                                    <button onClick={() => setDuplicateWarning(null)} className="text-xs opacity-60 hover:opacity-100">✕</button>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
 
                         {/* YouTube preview */}
                         {youtubeId && (
