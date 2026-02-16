@@ -50,13 +50,24 @@ export default function DailySurprisePage() {
     let song: Soundtrack | null = null;
 
     if (memories.length > 0) {
-      const rng = getSeededRandom();
-      photo = seededPick(memories, rng);
+      // Priority: manually picked (is_daily_pick) > seeded random
+      const manualPick = memories.find((m) => m.is_daily_pick);
+      if (manualPick) {
+        photo = manualPick;
+      } else {
+        const rng = getSeededRandom();
+        photo = seededPick(memories, rng);
+      }
     }
     if (soundtracks.length > 0) {
-      const rng = getSeededRandom();
-      rng(); // Advance rng
-      song = seededPick(soundtracks, rng);
+      const manualSong = soundtracks.find((s) => s.is_daily_pick);
+      if (manualSong) {
+        song = manualSong;
+      } else {
+        const rng = getSeededRandom();
+        rng(); // Advance rng
+        song = seededPick(soundtracks, rng);
+      }
     }
 
     return { photo, song };
@@ -145,10 +156,10 @@ export default function DailySurprisePage() {
             <Heart className="size-20 text-accent mx-auto mb-6" strokeWidth={1} />
           </motion.div>
           <h1 className="text-2xl font-[var(--font-dm-serif)] text-foreground mb-3">
-            No memories yet
+            Pas encore de souvenirs
           </h1>
           <p className="text-muted-foreground text-sm max-w-xs">
-            Start by adding your first photo in the Vault.
+            Commence par ajouter ta première photo dans le Coffre.
           </p>
         </div>
         <BottomNav />
@@ -183,40 +194,37 @@ export default function DailySurprisePage() {
             >
               {/* ═══ RECTO OVERLAY ═══ */}
 
-              {/* TOP — Photo date & location */}
+              {/* TOP-LEFT — Days counter (discreet) */}
+              <div className="absolute top-3 left-3 z-20 pointer-events-none">
+                <div className="flex items-center gap-1.5 bg-black/30 backdrop-blur-md rounded-full px-3 py-1.5 border border-white/10">
+                  <span className="font-[var(--font-dm-serif)] text-lg text-white/90 leading-none">
+                    {daysCount}
+                  </span>
+                  <span className="text-[9px] uppercase tracking-wider text-white/60 font-semibold">
+                    jours
+                  </span>
+                </div>
+              </div>
+
+              {/* TOP-RIGHT — Photo date & location (discreet) */}
               {(photoDateStr || photoLoc) && (
-                <div className="absolute top-0 left-0 right-0 z-20 pointer-events-none">
-                  <div className="flex items-center justify-center gap-3 px-4 py-3 bg-gradient-to-b from-black/50 to-transparent">
+                <div className="absolute top-3 right-3 z-20 pointer-events-none">
+                  <div className="flex flex-col items-end gap-1">
                     {photoDateStr && (
-                      <span className="flex items-center gap-1.5 text-white/90 text-xs font-medium">
-                        <Calendar className="size-3 opacity-70" />
+                      <span className="flex items-center gap-1 bg-black/30 backdrop-blur-md rounded-full px-2.5 py-1 border border-white/10 text-white/80 text-[10px] font-medium">
+                        <Calendar className="size-3 opacity-60" />
                         {photoDateStr}
                       </span>
                     )}
-                    {photoDateStr && photoLoc && (
-                      <span className="text-white/30">·</span>
-                    )}
                     {photoLoc && (
-                      <span className="flex items-center gap-1.5 text-white/90 text-xs font-medium">
-                        <MapPin className="size-3 opacity-70" />
+                      <span className="flex items-center gap-1 bg-black/30 backdrop-blur-md rounded-full px-2.5 py-1 border border-white/10 text-white/80 text-[10px] font-medium">
+                        <MapPin className="size-3 opacity-60" />
                         {photoLoc}
                       </span>
                     )}
                   </div>
                 </div>
               )}
-
-              {/* CENTER — Days counter (prominent overlay) */}
-              <div className="absolute top-12 left-0 right-0 z-20 pointer-events-none flex justify-center">
-                <div className="flex flex-col items-center bg-black/40 backdrop-blur-lg rounded-3xl px-6 py-3 border border-white/15 shadow-lg">
-                  <span className="font-[var(--font-dm-serif)] text-4xl text-white leading-none tracking-tight">
-                    {daysCount}
-                  </span>
-                  <span className="text-[10px] uppercase tracking-[0.25em] text-white/70 font-bold mt-1">
-                    jours ensemble
-                  </span>
-                </div>
-              </div>
 
               {/* BOTTOM-RIGHT — Favorite indicator */}
               {photo.is_favorite && (
