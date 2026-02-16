@@ -48,11 +48,26 @@ export default function DailySurprisePage() {
 
     let photo: Memory | null = null;
     let song: Soundtrack | null = null;
+    const todayStr = new Date().toLocaleDateString("fr-CA");
 
     if (memories.length > 0) {
-      // Priority: manually picked (is_daily_pick) > seeded random
+      // 1. Check for a memory scheduled SPECIFICALLY for today (Advent Calendar logic)
+      const scheduledForToday = memories.find((m) => {
+        if (!m.created_at) return false;
+        return new Date(m.created_at).toLocaleDateString("fr-CA") === todayStr;
+      });
+
+      // 2. Check for manual override (is_daily_pick) ONLY if it matches today or if no schedule exists
       const manualPick = memories.find((m) => m.is_daily_pick);
-      if (manualPick) {
+
+      if (scheduledForToday) {
+        photo = scheduledForToday;
+      } else if (manualPick) {
+        // Fallback: if a manual pick exists but isn't today's scheduled one, use it?
+        // Actually, if we use the Magic Wand, manualPick IS scheduledForToday usually.
+        // But if manualPick is old (yesterday), we should ignore it in favor of seeded random?
+        // Let's stick with manualPick as a strong override for now, but maybe only if it's recent?
+        // Simplify: If scheduled found, use it. If not, check manual.
         photo = manualPick;
       } else {
         const rng = getSeededRandom();

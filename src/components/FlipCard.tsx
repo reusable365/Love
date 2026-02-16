@@ -124,7 +124,8 @@ export function FlipCard({
                                     onChange={(e) => onCaptionChange?.(e.target.value)}
                                     className="w-full bg-white/5 text-[#E8B4A6] text-center font-[var(--font-caveat)] text-3xl leading-relaxed focus:outline-none resize-none rounded-2xl p-6 border border-white/10 shadow-inner min-h-[150px]"
                                     autoFocus
-                                    placeholder="Écris un souvenir..."
+                                    maxLength={280}
+                                    placeholder="Écris un souvenir... (max 7 lignes)"
                                     onClick={(e) => e.stopPropagation()}
                                 />
                                 <div className="flex gap-4">

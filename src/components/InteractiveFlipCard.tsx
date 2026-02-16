@@ -16,9 +16,18 @@ interface InteractiveFlipCardProps {
         is_daily_pick: boolean;
     };
     className?: string;
+    onClick?: () => void;
+    selected?: boolean;
+    enableSelection?: boolean;
 }
 
-export default function InteractiveFlipCard({ memory, className = "" }: InteractiveFlipCardProps) {
+export default function InteractiveFlipCard({
+    memory,
+    className = "",
+    onClick,
+    selected,
+    enableSelection = false
+}: InteractiveFlipCardProps) {
     const [isFlipped, setIsFlipped] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [caption, setCaption] = useState(memory.caption || "");
@@ -49,6 +58,15 @@ export default function InteractiveFlipCard({ memory, className = "" }: Interact
         }
     };
 
+    const handleCardClick = (e: React.MouseEvent) => {
+        if (enableSelection && onClick) {
+            e.stopPropagation();
+            onClick();
+            return;
+        }
+        handleFlip();
+    };
+
     const handleBlur = () => {
         setIsEditing(false);
         if (caption !== memory.caption) {
@@ -63,6 +81,8 @@ export default function InteractiveFlipCard({ memory, className = "" }: Interact
         }
     };
 
+    const isSelected = selected !== undefined ? selected : memory.is_daily_pick;
+
     return (
         <div className={`relative perspective-1000 group ${className}`}>
             <motion.div
@@ -72,8 +92,9 @@ export default function InteractiveFlipCard({ memory, className = "" }: Interact
             >
                 {/* FRONT SIDE (Photo) */}
                 <div
-                    className="absolute inset-0 backface-hidden rounded-[24px] overflow-hidden shadow-lg cursor-pointer bg-white"
-                    onClick={handleFlip}
+                    className={`absolute inset-0 backface-hidden rounded-[24px] overflow-hidden shadow-lg cursor-pointer bg-white transition-all duration-300 ${isSelected && enableSelection ? "ring-4 ring-primary scale-[0.98]" : ""
+                        }`}
+                    onClick={handleCardClick}
                 >
                     <LandscapePhoto
                         src={memory.image_url}
@@ -81,26 +102,29 @@ export default function InteractiveFlipCard({ memory, className = "" }: Interact
                     />
 
                     {/* Overlay actions (only visible on front) */}
-                    <div className="absolute top-3 right-3 flex gap-2">
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                setDailyPick.mutate(memory.id);
-                            }}
-                            className={`size-9 rounded-full flex items-center justify-center backdrop-blur-md transition-all ${memory.is_daily_pick
-                                ? "bg-primary text-white shadow-lg scale-110"
-                                : "bg-black/20 text-white/80 hover:bg-white/20"
-                                }`}
-                        >
-                            {setDailyPick.isPending ? (
-                                <Loader2 className="size-4 animate-spin" />
-                            ) : (
-                                <Heart
-                                    className={`size-5 ${memory.is_daily_pick ? "fill-current" : ""}`}
-                                />
-                            )}
-                        </button>
-                    </div>
+                    {/* ONLY SHOW HEART IF NOT IN SELECTION MODE OR IF IT IS THE INTERNAL HEART */}
+                    {!enableSelection && (
+                        <div className="absolute top-3 right-3 flex gap-2">
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setDailyPick.mutate(memory.id);
+                                }}
+                                className={`size-9 rounded-full flex items-center justify-center backdrop-blur-md transition-all ${memory.is_daily_pick
+                                    ? "bg-primary text-white shadow-lg scale-110"
+                                    : "bg-black/20 text-white/80 hover:bg-white/20"
+                                    }`}
+                            >
+                                {setDailyPick.isPending ? (
+                                    <Loader2 className="size-4 animate-spin" />
+                                ) : (
+                                    <Heart
+                                        className={`size-5 ${memory.is_daily_pick ? "fill-current" : ""}`}
+                                    />
+                                )}
+                            </button>
+                        </div>
+                    )}
 
                     {/* Flip hint on hover */}
                     <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex justify-center pb-2">
