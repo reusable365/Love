@@ -206,14 +206,14 @@ export default function DailySurprisePage() {
                 </div>
               )}
 
-              {/* BOTTOM-LEFT — Days counter (small pill) */}
-              <div className="absolute bottom-4 left-4 z-20 pointer-events-none">
-                <div className="flex items-center gap-2 bg-black/30 backdrop-blur-md rounded-full px-4 py-2 border border-white/10">
-                  <span className="font-[var(--font-dm-serif)] text-2xl text-white/90 leading-none">
+              {/* CENTER — Days counter (prominent overlay) */}
+              <div className="absolute top-12 left-0 right-0 z-20 pointer-events-none flex justify-center">
+                <div className="flex flex-col items-center bg-black/40 backdrop-blur-lg rounded-3xl px-6 py-3 border border-white/15 shadow-lg">
+                  <span className="font-[var(--font-dm-serif)] text-4xl text-white leading-none tracking-tight">
                     {daysCount}
                   </span>
-                  <span className="text-[9px] uppercase tracking-widest text-white/60 font-bold leading-tight">
-                    jours<br />ensemble
+                  <span className="text-[10px] uppercase tracking-[0.25em] text-white/70 font-bold mt-1">
+                    jours ensemble
                   </span>
                 </div>
               </div>

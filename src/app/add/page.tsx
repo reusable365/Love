@@ -348,11 +348,13 @@ function MusicForm({ showToast }: { showToast: (msg: string, t?: "success" | "er
             const fetchMeta = async () => {
                 setFetchingMeta(true);
                 setDuplicateWarning(null);
+                let fetchedTitle = "";
                 try {
                     const res = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${youtubeId}&format=json`);
                     if (res.ok) {
                         const data = await res.json();
-                        setTitle(data.title || "");
+                        fetchedTitle = data.title || "";
+                        setTitle(fetchedTitle);
                         setArtist(data.author_name || "");
                         showToast("Metadata found! 🎵", "success");
                     }
@@ -362,16 +364,31 @@ function MusicForm({ showToast }: { showToast: (msg: string, t?: "success" | "er
                     setFetchingMeta(false);
                 }
 
-                // Check for duplicate YouTube video
-                const existingDup = existingSoundtracks.find(s => {
+                // 1) Check for duplicate by YouTube video ID
+                const idDup = existingSoundtracks.find(s => {
                     if (s.type !== "youtube") return false;
                     const existingId = extractYouTubeId(s.src_url);
                     return existingId === youtubeId;
                 });
-                if (existingDup) {
+                if (idDup) {
                     setDuplicateWarning(
-                        `⚠️ Cette musique est déjà dans le coffre : "${existingDup.title}" par ${existingDup.artist}`
+                        `⚠️ Cette musique est déjà dans le coffre : "${idDup.title}" par ${idDup.artist}`
                     );
+                } else if (fetchedTitle) {
+                    // 2) Cross-check by title against ALL sources (YouTube + MP3)
+                    const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9\u00e0-\u00ff]/g, "");
+                    const normalizedTitle = normalize(fetchedTitle);
+                    const titleDup = existingSoundtracks.find(s => {
+                        const existingNorm = normalize(s.title);
+                        return existingNorm === normalizedTitle ||
+                            (normalizedTitle.length > 5 && existingNorm.includes(normalizedTitle)) ||
+                            (existingNorm.length > 5 && normalizedTitle.includes(existingNorm));
+                    });
+                    if (titleDup) {
+                        setDuplicateWarning(
+                            `⚠️ Un titre similaire existe déjà : "${titleDup.title}" par ${titleDup.artist} (${titleDup.type === "youtube" ? "YouTube" : "MP3"})`
+                        );
+                    }
                 }
             };
             fetchMeta();
