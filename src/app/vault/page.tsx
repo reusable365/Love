@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     useMemories,
@@ -69,10 +69,29 @@ export default function VaultPage() {
         }
     };
 
-    /* ─── Filtered data ─── */
+    /* ─── Shuffled Data ─── */
+    const [shuffledMemories, setShuffledMemories] = useState<Memory[]>([]);
+    const [shuffledSoundtracks, setShuffledSoundtracks] = useState<Soundtrack[]>([]);
+
+    useEffect(() => {
+        if (memories.length > 0) {
+            setShuffledMemories([...memories].sort(() => Math.random() - 0.5));
+        }
+    }, [memories]);
+
+    useEffect(() => {
+        if (soundtracks.length > 0) {
+            setShuffledSoundtracks([...soundtracks].sort(() => Math.random() - 0.5));
+        }
+    }, [soundtracks]);
+
+    // Use shuffled data for filtering
+    const displayMemories = search ? memories : shuffledMemories; // Search overrides shuffle
+    const displaySoundtracks = search ? soundtracks : shuffledSoundtracks;
+
     const filteredMemories = search
         ? memories.filter((m) => m.caption?.toLowerCase().includes(search.toLowerCase()))
-        : memories;
+        : displayMemories;
 
     const filteredSoundtracks = search
         ? soundtracks.filter(
@@ -80,7 +99,7 @@ export default function VaultPage() {
                 s.title.toLowerCase().includes(search.toLowerCase()) ||
                 s.artist.toLowerCase().includes(search.toLowerCase())
         )
-        : soundtracks;
+        : displaySoundtracks;
 
     const selectedMemCount = memories.filter((m) => m.is_daily_pick).length;
     const selectedSongCount = soundtracks.filter((s) => s.is_daily_pick).length;
@@ -90,19 +109,36 @@ export default function VaultPage() {
     /* ─── Masonry heights ─── */
     const masonryHeights = ["h-72", "h-48", "h-64", "h-56", "h-80", "h-48", "h-60", "h-44"];
 
+    const scrollToSection = (id: string) => {
+        const el = document.getElementById(id);
+        if (el) el.scrollIntoView({ behavior: "smooth" });
+    };
+
     return (
         <div className="flex flex-col h-dvh bg-background relative overflow-hidden">
             <BackgroundOrbs />
 
             {/* Header */}
-            <div className="relative z-10 pt-12 px-6 flex justify-between items-center">
-                <div className="flex flex-col">
+            <div className="relative z-10 pt-12 px-6 flex justify-between items-start">
+                <div className="flex flex-col gap-2">
                     <h1 className="text-3xl font-[var(--font-dm-serif)] text-foreground tracking-tight leading-tight">
-                        The <span className="text-primary italic">Vault</span> & Selection
+                        Le <span className="text-primary italic">Coffre</span> à souvenirs
                     </h1>
-                    <p className="text-muted-foreground mt-0.5 font-medium text-xs uppercase tracking-widest">
-                        Captured Moments
-                    </p>
+                    <div className="flex gap-4">
+                        <button
+                            onClick={() => scrollToSection("photos-section")}
+                            className="text-muted-foreground font-medium text-xs uppercase tracking-widest hover:text-primary transition-colors cursor-pointer"
+                        >
+                            Photos
+                        </button>
+                        <span className="text-muted-foreground/30 text-xs">•</span>
+                        <button
+                            onClick={() => scrollToSection("songs-section")}
+                            className="text-muted-foreground font-medium text-xs uppercase tracking-widest hover:text-primary transition-colors cursor-pointer"
+                        >
+                            Music
+                        </button>
+                    </div>
                 </div>
                 <div className="flex items-center gap-3">
                     <motion.button
@@ -183,7 +219,7 @@ export default function VaultPage() {
                 ) : (
                     <>
                         {/* Photos Section */}
-                        <div className="mb-8">
+                        <div className="mb-8" id="photos-section">
                             <div className="flex items-center justify-between mb-4">
                                 <h2 className="text-xl font-[var(--font-dm-serif)] text-foreground">Photos</h2>
                                 <p className="text-xs text-muted-foreground">{selectedMemCount} selected</p>
@@ -224,7 +260,7 @@ export default function VaultPage() {
                         </div>
 
                         {/* Songs Section */}
-                        <div className="mt-8">
+                        <div className="mt-8" id="songs-section">
                             <div className="flex items-center justify-between mb-4">
                                 <h2 className="text-xl font-[var(--font-dm-serif)] text-foreground">Songs</h2>
                                 <p className="text-xs text-muted-foreground">{selectedSongCount} selected</p>
