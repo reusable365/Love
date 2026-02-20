@@ -201,12 +201,18 @@ export default function DailySurprisePage() {
 
       {/* ═══ SLIDESHOW OVERLAY ═══ */}
       <AnimatePresence>
-        {showSlideshow && allMemories && allMemories.length > 0 && (
-          <SlideshowOverlay
-            memories={[...allMemories].sort(() => Math.random() - 0.5)}
-            onClose={() => setShowSlideshow(false)}
-          />
-        )}
+        {showSlideshow && allMemories && allMemories.length > 0 && (() => {
+          const today = new Date();
+          today.setHours(23, 59, 59, 999);
+          const unlocked = allMemories.filter(m => m.created_at && new Date(m.created_at) <= today);
+          if (unlocked.length === 0) return null;
+          return (
+            <SlideshowOverlay
+              memories={[...unlocked].sort(() => Math.random() - 0.5)}
+              onClose={() => setShowSlideshow(false)}
+            />
+          );
+        })()}
       </AnimatePresence>
 
       <div className="flex-1 flex flex-col relative z-10 h-full">
