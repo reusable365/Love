@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { motion } from "framer-motion";
+import { useState, useRef, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { getSupabase } from "@/lib/supabase";
 import { Heart, Loader2, Check } from "lucide-react";
-import { useSetDailyPickMemory } from "@/hooks/useData";
+import { useToggleFavorite } from "@/hooks/useData";
 import LandscapePhoto from "@/components/LandscapePhoto";
 
 interface InteractiveFlipCardProps {
@@ -14,6 +14,7 @@ interface InteractiveFlipCardProps {
         image_url: string;
         caption: string;
         is_daily_pick: boolean;
+        is_favorite?: boolean;
     };
     className?: string;
     onClick?: () => void;
@@ -32,9 +33,11 @@ export default function InteractiveFlipCard({
     const [isEditing, setIsEditing] = useState(false);
     const [caption, setCaption] = useState(memory.caption || "");
     const [justSaved, setJustSaved] = useState(false);
+    const [showHeart, setShowHeart] = useState(false);
+    const lastTapRef = useRef(0);
 
     const queryClient = useQueryClient();
-    const setDailyPick = useSetDailyPickMemory();
+    const toggleFavorite = useToggleFavorite();
 
     // Mutation to update caption
     const updateCaption = useMutation({
@@ -58,13 +61,39 @@ export default function InteractiveFlipCard({
         }
     };
 
+    // Double-tap handler for Coup de 🩷
+    const handleDoubleTap = useCallback(() => {
+        const now = Date.now();
+        const timeSinceLastTap = now - lastTapRef.current;
+        lastTapRef.current = now;
+
+        if (timeSinceLastTap < 350) {
+            // Double tap detected!
+            setShowHeart(true);
+            if (!memory.is_favorite) {
+                toggleFavorite.mutate({ id: memory.id, is_favorite: true });
+            }
+            setTimeout(() => setShowHeart(false), 1200);
+            return true; // was a double-tap
+        }
+        return false; // was a single tap
+    }, [memory.id, memory.is_favorite, toggleFavorite]);
+
     const handleCardClick = (e: React.MouseEvent) => {
         if (enableSelection && onClick) {
             e.stopPropagation();
             onClick();
             return;
         }
-        handleFlip();
+        // Check double-tap first, only flip if it was a single tap
+        if (!handleDoubleTap()) {
+            // Delay the flip to wait for potential second tap
+            setTimeout(() => {
+                if (Date.now() - lastTapRef.current >= 350) {
+                    handleFlip();
+                }
+            }, 360);
+        }
     };
 
     const handleBlur = () => {
@@ -101,30 +130,51 @@ export default function InteractiveFlipCard({
                         alt="Memory"
                     />
 
-                    {/* Overlay actions (only visible on front) */}
-                    {/* ONLY SHOW HEART IF NOT IN SELECTION MODE OR IF IT IS THE INTERNAL HEART */}
+                    {/* Overlay actions — Coup de 🩷 */}
                     {!enableSelection && (
                         <div className="absolute top-3 right-3 flex gap-2">
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    setDailyPick.mutate(memory.id);
+                                    toggleFavorite.mutate({ id: memory.id, is_favorite: !memory.is_favorite });
                                 }}
-                                className={`size-9 rounded-full flex items-center justify-center backdrop-blur-md transition-all ${memory.is_daily_pick
-                                    ? "bg-primary text-white shadow-lg scale-110"
+                                className={`size-9 rounded-full flex items-center justify-center backdrop-blur-md transition-all ${memory.is_favorite
+                                    ? "bg-pink-500 text-white shadow-lg scale-110"
                                     : "bg-black/20 text-white/80 hover:bg-white/20"
                                     }`}
                             >
-                                {setDailyPick.isPending ? (
+                                {toggleFavorite.isPending ? (
                                     <Loader2 className="size-4 animate-spin" />
                                 ) : (
                                     <Heart
-                                        className={`size-5 ${memory.is_daily_pick ? "fill-current" : ""}`}
+                                        className={`size-5 ${memory.is_favorite ? "fill-current" : ""}`}
                                     />
                                 )}
                             </button>
                         </div>
                     )}
+
+                    {/* ❤️ DOUBLE-TAP HEART ANIMATION */}
+                    <AnimatePresence>
+                        {showHeart && (
+                            <motion.div
+                                className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 0.3 }}
+                            >
+                                <motion.div
+                                    initial={{ scale: 0, rotate: -10 }}
+                                    animate={{ scale: 1, rotate: 0 }}
+                                    exit={{ scale: 0.5, opacity: 0 }}
+                                    transition={{ type: "spring", stiffness: 400, damping: 15 }}
+                                >
+                                    <Heart className="size-16 text-pink-500 drop-shadow-2xl" fill="currentColor" strokeWidth={0} />
+                                </motion.div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
 
                     {/* Flip hint on hover */}
                     <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex justify-center pb-2">

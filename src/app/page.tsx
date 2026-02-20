@@ -17,9 +17,10 @@ import { formatPhotoDate } from "@/lib/exifUtils";
 import BackgroundOrbs from "@/components/BackgroundOrbs";
 import BottomNav from "@/components/BottomNav";
 import MusicPlayer from "@/components/MusicPlayer";
+import SlideshowOverlay from "@/components/SlideshowOverlay";
 import { FlipCard } from "@/components/FlipCard";
 import MagicalText from "@/components/MagicalText";
-import { Loader2, Heart, MapPin, Calendar } from "lucide-react";
+import { Loader2, Heart, MapPin, Calendar, PlayCircle } from "lucide-react";
 import { differenceInDays } from "date-fns";
 import type { Memory, Soundtrack } from "@/lib/supabase";
 
@@ -36,6 +37,7 @@ export default function DailySurprisePage() {
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
   const [isEditingCaption, setIsEditingCaption] = useState(false);
   const [captionDraft, setCaptionDraft] = useState("");
+  const [showSlideshow, setShowSlideshow] = useState(false);
 
   // Double-tap heart animation
   const [showHeart, setShowHeart] = useState(false);
@@ -193,6 +195,16 @@ export default function DailySurprisePage() {
     <div className="flex flex-col h-dvh bg-background relative overflow-hidden">
       <BackgroundOrbs />
 
+      {/* ═══ SLIDESHOW OVERLAY ═══ */}
+      <AnimatePresence>
+        {showSlideshow && allMemories && allMemories.length > 0 && (
+          <SlideshowOverlay
+            memories={[...allMemories].sort(() => Math.random() - 0.5)}
+            onClose={() => setShowSlideshow(false)}
+          />
+        )}
+      </AnimatePresence>
+
       <div className="flex-1 flex flex-col relative z-10 h-full">
 
         {/* Photo container with Flip Interaction */}
@@ -211,9 +223,9 @@ export default function DailySurprisePage() {
             >
               {/* ═══ RECTO OVERLAY ═══ */}
 
-              {/* TOP-LEFT — Days counter (discreet) */}
-              <div className="absolute top-3 left-3 z-20 pointer-events-none">
-                <div className="flex items-center gap-1.5 bg-black/30 backdrop-blur-md rounded-full px-3 py-1.5 border border-white/10">
+              {/* TOP-LEFT — Days counter + Slideshow button */}
+              <div className="absolute top-3 left-3 z-20 flex items-center gap-2">
+                <div className="flex items-center gap-1.5 bg-black/30 backdrop-blur-md rounded-full px-3 py-1.5 border border-white/10 pointer-events-none">
                   <span className="font-[var(--font-dm-serif)] text-lg text-white/90 leading-none">
                     {daysCount}
                   </span>
@@ -221,6 +233,17 @@ export default function DailySurprisePage() {
                     jours
                   </span>
                 </div>
+                {/* Slideshow button */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowSlideshow(true);
+                  }}
+                  className="size-9 rounded-full bg-black/30 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/70 hover:text-white hover:bg-black/50 transition-all active:scale-90"
+                  title="Lancer le Diaporama"
+                >
+                  <PlayCircle className="size-5" />
+                </button>
               </div>
 
               {/* TOP-RIGHT — Photo date & location (discreet) */}
