@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Pause, Play, MapPin, Calendar } from "lucide-react";
 import type { Memory } from "@/lib/supabase";
@@ -15,8 +15,6 @@ interface SlideshowOverlayProps {
 export default function SlideshowOverlay({ memories, onClose }: SlideshowOverlayProps) {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isPlaying, setIsPlaying] = useState(true);
-    const touchStartX = useRef<number | null>(null);
-    const touchStartY = useRef<number | null>(null);
 
     const currentMemory = memories[currentIndex];
 
@@ -51,32 +49,6 @@ export default function SlideshowOverlay({ memories, onClose }: SlideshowOverlay
         return () => window.removeEventListener("keydown", handleKeyDown);
     }, [memories.length, onClose, goNext, goPrev]);
 
-    // Touch swipe navigation
-    const handleTouchStart = useCallback((e: React.TouchEvent) => {
-        touchStartX.current = e.touches[0].clientX;
-        touchStartY.current = e.touches[0].clientY;
-    }, []);
-
-    const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-        if (touchStartX.current === null || touchStartY.current === null) return;
-
-        const deltaX = e.changedTouches[0].clientX - touchStartX.current;
-        const deltaY = e.changedTouches[0].clientY - touchStartY.current;
-        const SWIPE_THRESHOLD = 50;
-
-        // Only trigger if horizontal swipe is dominant
-        if (Math.abs(deltaX) > SWIPE_THRESHOLD && Math.abs(deltaX) > Math.abs(deltaY)) {
-            if (deltaX < 0) {
-                goNext(); // Swipe left → next
-            } else {
-                goPrev(); // Swipe right → previous
-            }
-        }
-
-        touchStartX.current = null;
-        touchStartY.current = null;
-    }, [goNext, goPrev]);
-
     if (!currentMemory) return null;
 
     return (
@@ -85,8 +57,6 @@ export default function SlideshowOverlay({ memories, onClose }: SlideshowOverlay
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[60] bg-black flex items-center justify-center"
-            onTouchStart={handleTouchStart}
-            onTouchEnd={handleTouchEnd}
         >
             {/* Background Blur (Ambient) */}
             <div className="absolute inset-0 opacity-30">
