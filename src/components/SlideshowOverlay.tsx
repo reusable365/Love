@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Pause, Play, MapPin, Calendar } from "lucide-react";
 import type { Memory } from "@/lib/supabase";
 import { formatPhotoDate } from "@/lib/exifUtils";
-import LandscapePhoto from "@/components/LandscapePhoto";
 
 interface SlideshowOverlayProps {
     memories: Memory[];
@@ -26,13 +25,23 @@ export default function SlideshowOverlay({ memories, onClose }: SlideshowOverlay
         setCurrentIndex((prev) => (prev - 1 + memories.length) % memories.length);
     }, [memories.length]);
 
+    // Preload upcoming images for smooth transitions
+    useEffect(() => {
+        const preloadCount = 2;
+        for (let i = 1; i <= preloadCount; i++) {
+            const nextIndex = (currentIndex + i) % memories.length;
+            const img = new Image();
+            img.src = memories[nextIndex].image_url;
+        }
+    }, [currentIndex, memories]);
+
     // Auto-advance
     useEffect(() => {
         if (!isPlaying) return;
 
         const timer = setInterval(() => {
             setCurrentIndex((prev) => (prev + 1) % memories.length);
-        }, 6000); // 6 seconds per slide
+        }, 6000);
 
         return () => clearInterval(timer);
     }, [isPlaying, memories.length]);
@@ -58,34 +67,42 @@ export default function SlideshowOverlay({ memories, onClose }: SlideshowOverlay
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[60] bg-black flex items-center justify-center"
         >
-            {/* Background Blur (Ambient) */}
-            <div className="absolute inset-0 opacity-30">
-                <img
-                    src={currentMemory.image_url}
-                    alt=""
-                    className="w-full h-full object-cover blur-3xl scale-125"
-                />
-            </div>
+            {/* Background Blur (Ambient) — crossfade with no gap */}
+            <AnimatePresence mode="popLayout">
+                <motion.div
+                    key={`bg-${currentMemory.id}`}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 0.3 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 1.2 }}
+                    className="absolute inset-0"
+                >
+                    <img
+                        src={currentMemory.image_url}
+                        alt=""
+                        className="w-full h-full object-cover blur-3xl scale-125"
+                    />
+                </motion.div>
+            </AnimatePresence>
 
-            {/* Main Image Container */}
+            {/* Main Image Container — crossfade (old fades out WHILE new fades in) */}
             <div className="absolute inset-0 flex items-center justify-center p-4 md:p-10">
-                <AnimatePresence mode="wait">
+                <AnimatePresence mode="popLayout">
                     <motion.div
                         key={currentMemory.id}
-                        initial={{ opacity: 0, scale: 1.1 }}
+                        initial={{ opacity: 0 }}
                         animate={{
                             opacity: 1,
-                            scale: 1,
-                            transition: { duration: 1.5, ease: "easeOut" }
+                            transition: { duration: 1.2, ease: "easeOut" }
                         }}
-                        exit={{ opacity: 0, transition: { duration: 0.8 } }}
-                        className="relative w-full h-full max-h-[90vh] max-w-[90vw] flex items-center justify-center overflow-hidden rounded-xl shadow-2xl"
+                        exit={{ opacity: 0, transition: { duration: 1.0, ease: "easeIn" } }}
+                        className="absolute inset-0 flex items-center justify-center p-4 md:p-10"
                     >
                         {/* Ken Burns Effect Wrapper */}
                         <motion.img
                             src={currentMemory.image_url}
                             alt="Memory"
-                            className="w-full h-full object-contain max-h-full max-w-full"
+                            className="max-w-full max-h-full object-contain rounded-xl shadow-2xl"
                             animate={{ scale: [1, 1.05] }}
                             transition={{ duration: 6, ease: "linear" }}
                         />
@@ -99,7 +116,7 @@ export default function SlideshowOverlay({ memories, onClose }: SlideshowOverlay
                     <motion.div
                         key={currentMemory.id}
                         initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0, transition: { delay: 0.5 } }}
+                        animate={{ opacity: 1, y: 0, transition: { delay: 0.8 } }}
                         exit={{ opacity: 0, y: -10 }}
                         className="flex flex-col gap-2"
                     >
