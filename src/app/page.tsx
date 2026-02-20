@@ -125,7 +125,11 @@ export default function DailySurprisePage() {
   };
 
   // Double-tap handler for Coup de 🩷
-  const handleDoubleTap = useCallback(() => {
+  const handleDoubleTap = useCallback((e: React.MouseEvent) => {
+    // Ignore clicks from interactive elements (buttons, etc.)
+    const target = e.target as HTMLElement;
+    if (target.closest('button') || target.closest('a') || target.closest('[data-interactive]')) return;
+
     if (!photo) return;
     const now = Date.now();
     const timeSinceLastTap = now - lastTapRef.current;

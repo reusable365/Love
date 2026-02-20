@@ -34,8 +34,10 @@ export function FlipCard({
     const today = new Date();
     const daysCount = differenceInDays(today, startDate);
 
-    // Handle flip click
-    const handleCardClick = () => {
+    // Handle flip click — ignore if from an interactive child (button, etc.)
+    const handleCardClick = (e: React.MouseEvent) => {
+        const target = e.target as HTMLElement;
+        if (target.closest('button') || target.closest('a') || target.closest('[data-interactive]')) return;
         if (!isEditing) {
             setIsFlipped(!isFlipped);
         }
@@ -66,8 +68,8 @@ export function FlipCard({
                         alt={memory.caption}
                         wrapperClassName="pointer-events-none"
                     />
-                    {/* Front overlay (children: days counter etc) */}
-                    <div className="absolute inset-0 pointer-events-none z-10">
+                    {/* Front overlay (children: days counter, slideshow btn etc) */}
+                    <div className="absolute inset-0 z-10">
                         {children}
                     </div>
                 </div>
