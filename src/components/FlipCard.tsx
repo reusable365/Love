@@ -5,6 +5,7 @@ import { differenceInDays } from "date-fns";
 import { PenLine, Save, X } from "lucide-react";
 import LandscapePhoto from "./LandscapePhoto";
 import { Memory } from "@/lib/supabase";
+import { getQuoteForMemory } from "@/lib/quotes";
 
 interface FlipCardProps {
     memory: Memory;
@@ -28,6 +29,9 @@ export function FlipCard({
     onSave
 }: FlipCardProps) {
     const [isFlipped, setIsFlipped] = useState(false);
+
+    // Fallback quote
+    const fallbackQuote = getQuoteForMemory(memory.id);
 
     // Start Date: 10 Feb 2002
     const startDate = new Date(2002, 1, 10);
@@ -108,7 +112,7 @@ export function FlipCard({
                                     e.stopPropagation();
                                     onEditToggle();
                                 }}
-                                className="absolute -top-16 right-0 size-14 rounded-full bg-white/20 backdrop-blur-xl border border-white/30 flex items-center justify-center text-[#E8B4A6] shadow-2xl hover:scale-110 active:scale-95 transition-all z-50"
+                                className="absolute -top-16 right-0 size-14 rounded-full bg-white/20 backdrop-blur-xl border border-white/30 flex items-center justify-center text-[#E8B4A6] shadow-2xl hover:scale-110 active:scale-95 transition-all z-50 pointer-events-auto"
                                 title="Écrire une note"
                             >
                                 <PenLine size={24} />
@@ -151,7 +155,11 @@ export function FlipCard({
                                 className="text-4xl md:text-5xl leading-tight text-white drop-shadow-2xl px-2"
                                 style={{ fontFamily: "'Caveat', cursive" }}
                             >
-                                &ldquo;{memory.caption || "Ajouter une note..."}&rdquo;
+                                &ldquo;{
+                                    (memory.caption && !/.*\.(jpe?g|png|heic|webp|gif)$/i.test(memory.caption))
+                                        ? memory.caption
+                                        : fallbackQuote
+                                }&rdquo;
                             </div>
                         )}
 

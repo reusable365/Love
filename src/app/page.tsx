@@ -93,7 +93,13 @@ export default function DailySurprisePage() {
   // Sync draft with photo caption
   useEffect(() => {
     if (photo?.caption) {
-      setCaptionDraft(photo.caption);
+      if (/.*\.(jpe?g|png|heic|webp|gif)$/i.test(photo.caption)) {
+        setCaptionDraft("");
+      } else {
+        setCaptionDraft(photo.caption);
+      }
+    } else {
+      setCaptionDraft("");
     }
   }, [photo]);
 

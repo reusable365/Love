@@ -7,6 +7,7 @@ import { getSupabase } from "@/lib/supabase";
 import { Heart, Loader2, Check } from "lucide-react";
 import { useToggleFavorite } from "@/hooks/useData";
 import LandscapePhoto from "@/components/LandscapePhoto";
+import { getQuoteForMemory } from "@/lib/quotes";
 
 interface InteractiveFlipCardProps {
     memory: {
@@ -31,13 +32,22 @@ export default function InteractiveFlipCard({
 }: InteractiveFlipCardProps) {
     const [isFlipped, setIsFlipped] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
-    const [caption, setCaption] = useState(memory.caption || "");
+
+    // Ignore default filenames when initializing the edit draft
+    const initialCaption = (memory.caption && !/.*\.(jpe?g|png|heic|webp|gif)$/i.test(memory.caption))
+        ? memory.caption
+        : "";
+    const [caption, setCaption] = useState(initialCaption);
+
     const [justSaved, setJustSaved] = useState(false);
     const [showHeart, setShowHeart] = useState(false);
     const lastTapRef = useRef(0);
 
     const queryClient = useQueryClient();
     const toggleFavorite = useToggleFavorite();
+
+    // Fallback quote
+    const fallbackQuote = getQuoteForMemory(memory.id);
 
     // Mutation to update caption
     const updateCaption = useMutation({
@@ -240,9 +250,9 @@ export default function InteractiveFlipCard({
                                         fontFamily: "var(--font-caveat), cursive",
                                     }}
                                 >
-                                    {caption || (
-                                        <span className="text-stone-300 italic">
-                                            Écrire un souvenir...
+                                    {(caption && !/.*\.(jpe?g|png|heic|webp|gif)$/i.test(caption)) ? caption : (
+                                        <span className="text-[#2c3e50]/70">
+                                            {fallbackQuote}
                                         </span>
                                     )}
                                 </div>

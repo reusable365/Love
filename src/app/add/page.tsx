@@ -196,9 +196,30 @@ function PhotoForm({ showToast }: { showToast: (msg: string, t?: "success" | "er
                 .from("vault")
                 .getPublicUrl(fileName);
 
+            let finalCaption = caption;
+
+            // Generate auto-quote if caption is empty
+            if (!finalCaption.trim()) {
+                try {
+                    const res = await fetch('/api/generate-quote', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ image_url: urlData.publicUrl }),
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data.quote) {
+                            finalCaption = data.quote;
+                        }
+                    }
+                } catch (e) {
+                    console.error("Failed to generate quote", e);
+                }
+            }
+
             await addMemory.mutateAsync({
                 image_url: urlData.publicUrl,
-                caption,
+                caption: finalCaption,
                 is_daily_pick: forceDaily,
                 photo_date: photoDate,
                 photo_location: photoLocation,
