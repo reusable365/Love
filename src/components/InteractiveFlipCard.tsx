@@ -235,6 +235,8 @@ export default function InteractiveFlipCard({
                                     onBlur={handleBlur}
                                     onKeyDown={handleKeyDown}
                                     autoFocus
+                                    onPointerDown={(e) => e.stopPropagation()}
+                                    onTouchStart={(e) => e.stopPropagation()}
                                     style={{
                                         fontFamily: "var(--font-caveat), cursive",
                                     }}
@@ -248,6 +250,8 @@ export default function InteractiveFlipCard({
                                         e.stopPropagation();
                                         setIsEditing(true);
                                     }}
+                                    onPointerDown={(e) => e.stopPropagation()}
+                                    onTouchStart={(e) => e.stopPropagation()}
                                     style={{
                                         fontFamily: "var(--font-caveat), cursive",
                                     }}

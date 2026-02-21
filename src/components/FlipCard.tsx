@@ -102,25 +102,27 @@ export function FlipCard({
                         <div className="absolute inset-0 bg-black/30" />
                     </div>
 
-                    {/* Content */}
-                    <div className="relative z-10 flex flex-col items-center gap-6 max-w-md w-full">
+                    {/* ✏️ PEN BUTTON — top right */}
+                    {!isEditing && onEditToggle && (
+                        <button
+                            type="button"
+                            data-interactive="true"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                onEditToggle();
+                            }}
+                            onPointerDown={(e) => e.stopPropagation()}
+                            onTouchStart={(e) => e.stopPropagation()}
+                            className="absolute top-6 right-6 size-14 rounded-full bg-white/20 backdrop-blur-xl border border-white/30 flex items-center justify-center text-[#E8B4A6] shadow-2xl hover:scale-110 active:scale-95 transition-all z-50 pointer-events-auto"
+                            title="Écrire une note"
+                        >
+                            <PenLine size={24} />
+                        </button>
+                    )}
 
-                        {/* ✏️ PEN BUTTON — top right */}
-                        {!isEditing && onEditToggle && (
-                            <button
-                                type="button"
-                                data-interactive="true"
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    onEditToggle();
-                                }}
-                                className="absolute -top-16 right-0 size-14 rounded-full bg-white/20 backdrop-blur-xl border border-white/30 flex items-center justify-center text-[#E8B4A6] shadow-2xl hover:scale-110 active:scale-95 transition-all z-50 pointer-events-auto"
-                                title="Écrire une note"
-                            >
-                                <PenLine size={24} />
-                            </button>
-                        )}
+                    {/* Content */}
+                    <div className="relative z-10 flex flex-col items-center gap-6 max-w-md w-full pointer-events-auto">
 
                         <div className="text-[10px] tracking-[0.4em] uppercase text-white/40 font-bold">
                             Good Vibe
@@ -136,6 +138,8 @@ export function FlipCard({
                                     maxLength={280}
                                     placeholder="Écris un souvenir... (max 7 lignes)"
                                     onClick={(e) => e.stopPropagation()}
+                                    onPointerDown={(e) => e.stopPropagation()}
+                                    onTouchStart={(e) => e.stopPropagation()}
                                 />
                                 <div className="flex gap-4">
                                     <button
