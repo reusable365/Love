@@ -108,7 +108,10 @@ export function FlipCard({
                         {/* ✏️ PEN BUTTON — top right */}
                         {!isEditing && onEditToggle && (
                             <button
+                                type="button"
+                                data-interactive="true"
                                 onClick={(e) => {
+                                    e.preventDefault();
                                     e.stopPropagation();
                                     onEditToggle();
                                 }}

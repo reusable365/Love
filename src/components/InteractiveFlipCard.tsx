@@ -242,7 +242,9 @@ export default function InteractiveFlipCard({
                             ) : (
                                 <div
                                     className="w-full h-full flex items-center justify-center text-2xl text-center leading-relaxed text-[#2c3e50] font-[var(--font-caveat)] selection:bg-stone-200"
+                                    data-interactive="true"
                                     onClick={(e) => {
+                                        e.preventDefault();
                                         e.stopPropagation();
                                         setIsEditing(true);
                                     }}
