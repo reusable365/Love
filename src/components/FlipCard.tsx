@@ -80,7 +80,11 @@ export function FlipCard({
                 {/* ═══ FRONT ═══ */}
                 <div
                     className="absolute inset-0 bg-black overflow-hidden rounded-[32px]"
-                    style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}
+                    style={{
+                        backfaceVisibility: "hidden",
+                        WebkitBackfaceVisibility: "hidden",
+                        pointerEvents: isFlipped ? "none" : "auto",
+                    }}
                     onClick={handleFrontClick}
                 >
                     <LandscapePhoto
@@ -102,6 +106,7 @@ export function FlipCard({
                         WebkitBackfaceVisibility: "hidden",
                         transform: "rotateY(180deg)",
                         backgroundColor: "#0f0d0c",
+                        pointerEvents: isFlipped ? "auto" : "none",
                     }}
                     onClick={handleBackClick}
                 >
