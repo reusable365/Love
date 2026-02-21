@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, ReactNode } from "react";
+import { useState, useRef, ReactNode } from "react";
 import { differenceInDays } from "date-fns";
 import { PenLine, Save, X } from "lucide-react";
 import LandscapePhoto from "./LandscapePhoto";
@@ -17,6 +17,7 @@ interface FlipCardProps {
     onCaptionChange?: (val: string) => void;
     onEditToggle?: () => void;
     onSave?: () => void;
+    onFrontClick?: (e: React.MouseEvent) => void;
 }
 
 export function FlipCard({
@@ -26,9 +27,12 @@ export function FlipCard({
     captionDraft = "",
     onCaptionChange,
     onEditToggle,
-    onSave
+    onSave,
+    onFrontClick
 }: FlipCardProps) {
     const [isFlipped, setIsFlipped] = useState(false);
+    // Guard: prevent flip right after pen click
+    const justClickedPen = useRef(false);
 
     // Fallback quote
     const fallbackQuote = getQuoteForMemory(memory.id);
@@ -38,22 +42,33 @@ export function FlipCard({
     const today = new Date();
     const daysCount = differenceInDays(today, startDate);
 
-    // Handle flip click — ignore if from an interactive child (button, etc.)
-    const handleCardClick = (e: React.MouseEvent) => {
+    // Flip to BACK (only from front face)
+    const handleFrontClick = (e: React.MouseEvent) => {
+        // Ignore clicks from interactive elements
         const target = e.target as HTMLElement;
-        if (target.closest('button') || target.closest('a') || target.closest('[data-interactive]')) return;
-        if (!isEditing) {
-            setIsFlipped(!isFlipped);
+        if (target.closest('button') || target.closest('a')) return;
+        onFrontClick?.(e);
+        if (!justClickedPen.current) {
+            setIsFlipped(true);
         }
+        justClickedPen.current = false;
+    };
+
+    // Flip to FRONT (only from back face, and only if NOT editing)
+    const handleBackClick = () => {
+        if (!isEditing && !justClickedPen.current) {
+            setIsFlipped(false);
+        }
+        justClickedPen.current = false;
     };
 
     return (
         <div
             className="relative h-full w-full group cursor-pointer"
             style={{ perspective: "1200px" }}
-            onClick={handleCardClick}
+        // NO onClick here — each face handles its own clicks
         >
-            {/* Inner container - pure CSS transition, NO framer-motion */}
+            {/* Inner container - pure CSS transition */}
             <div
                 style={{
                     transformStyle: "preserve-3d",
@@ -66,6 +81,7 @@ export function FlipCard({
                 <div
                     className="absolute inset-0 bg-black overflow-hidden rounded-[32px]"
                     style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}
+                    onClick={handleFrontClick}
                 >
                     <LandscapePhoto
                         src={memory.image_url}
@@ -87,9 +103,7 @@ export function FlipCard({
                         transform: "rotateY(180deg)",
                         backgroundColor: "#0f0d0c",
                     }}
-                    onClick={(e) => {
-                        if (isEditing) e.stopPropagation();
-                    }}
+                    onClick={handleBackClick}
                 >
                     {/* Blurred BG — photo visible through blur */}
                     <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -106,15 +120,12 @@ export function FlipCard({
                     {!isEditing && onEditToggle && (
                         <button
                             type="button"
-                            data-interactive="true"
                             onClick={(e) => {
-                                e.preventDefault();
                                 e.stopPropagation();
+                                justClickedPen.current = true;
                                 onEditToggle();
                             }}
-                            onPointerDown={(e) => e.stopPropagation()}
-                            onTouchStart={(e) => e.stopPropagation()}
-                            className="absolute top-6 right-6 size-14 rounded-full bg-white/20 backdrop-blur-xl border border-white/30 flex items-center justify-center text-[#E8B4A6] shadow-2xl hover:scale-110 active:scale-95 transition-all z-50 pointer-events-auto"
+                            className="absolute top-6 right-6 size-14 rounded-full bg-white/20 backdrop-blur-xl border border-white/30 flex items-center justify-center text-[#E8B4A6] shadow-2xl hover:scale-110 active:scale-95 transition-all z-50"
                             title="Écrire une note"
                         >
                             <PenLine size={24} />
@@ -122,14 +133,14 @@ export function FlipCard({
                     )}
 
                     {/* Content */}
-                    <div className="relative z-10 flex flex-col items-center gap-6 max-w-md w-full pointer-events-auto">
+                    <div className="relative z-10 flex flex-col items-center gap-6 max-w-md w-full">
 
                         <div className="text-[10px] tracking-[0.4em] uppercase text-white/40 font-bold">
                             Good Vibe
                         </div>
 
                         {isEditing ? (
-                            <div className="w-full flex flex-col items-center gap-6">
+                            <div className="w-full flex flex-col items-center gap-6" onClick={(e) => e.stopPropagation()}>
                                 <textarea
                                     value={captionDraft}
                                     onChange={(e) => onCaptionChange?.(e.target.value)}
@@ -137,9 +148,6 @@ export function FlipCard({
                                     autoFocus
                                     maxLength={280}
                                     placeholder="Écris un souvenir... (max 7 lignes)"
-                                    onClick={(e) => e.stopPropagation()}
-                                    onPointerDown={(e) => e.stopPropagation()}
-                                    onTouchStart={(e) => e.stopPropagation()}
                                 />
                                 <div className="flex gap-4">
                                     <button

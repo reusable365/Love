@@ -227,7 +227,6 @@ export default function DailySurprisePage() {
         {photo && (
           <div
             className="flex-1 relative mx-4 my-4 rounded-[32px] overflow-hidden shadow-2xl"
-            onClick={handleDoubleTap}
           >
             <FlipCard
               memory={photo}
@@ -236,6 +235,7 @@ export default function DailySurprisePage() {
               onCaptionChange={setCaptionDraft}
               onEditToggle={() => setIsEditingCaption(!isEditingCaption)}
               onSave={handleSaveCaption}
+              onFrontClick={handleDoubleTap}
             >
               {/* ═══ RECTO OVERLAY ═══ */}
 
