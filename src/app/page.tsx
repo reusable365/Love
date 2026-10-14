@@ -352,60 +352,62 @@ export default function DailySurprisePage() {
             >
               {/* ═══ RECTO OVERLAY ═══ */}
 
-              {/* BOTTOM-LEFT — Partner seen badge */}
-              {partnerStatus && (
-                <div className="absolute bottom-4 left-4 z-20 pointer-events-none">
-                  <div className="flex items-center gap-1.5 bg-black/40 backdrop-blur-md rounded-full px-3 py-1.5 border border-white/15 text-white shadow-lg">
-                    <span className="text-sm">{otherUserEmoji}</span>
-                    <span className="font-medium text-[10px] text-white/90">
-                      {partnerStatus}
+              {/* TOP-LEFT — Controls & Status Badges */}
+              <div className="absolute top-3 left-3 z-20 flex flex-col items-start gap-1.5">
+                <div className="flex items-center gap-2">
+                  <div
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setTriggerCelebration(true);
+                      setTimeout(() => setTriggerCelebration(false), 4000);
+                    }}
+                    className="flex items-center gap-1.5 bg-black/40 hover:bg-black/60 backdrop-blur-md rounded-full px-3 py-1.5 border border-white/15 cursor-pointer transition active:scale-95 shadow-md"
+                    title="Célébrer notre amour ! 💖"
+                  >
+                    <span className="font-[var(--font-dm-serif)] text-lg text-white/90 leading-none">
+                      {daysCount}
+                    </span>
+                    <span className="text-[9px] uppercase tracking-wider text-white/60 font-semibold">
+                      jours
                     </span>
                   </div>
+                  {/* Slideshow button */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowSlideshow(true);
+                    }}
+                    className="size-9 rounded-full bg-black/40 backdrop-blur-md border border-white/15 flex items-center justify-center text-white/70 hover:text-white hover:bg-black/60 transition-all active:scale-90 shadow-md"
+                    title="Lancer le Diaporama"
+                  >
+                    <PlayCircle className="size-5" />
+                  </button>
                 </div>
-              )}
 
-              {/* TOP-LEFT — Days counter + Slideshow button */}
-              <div className="absolute top-3 left-3 z-20 flex items-center gap-2">
-                <div
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setTriggerCelebration(true);
-                    setTimeout(() => setTriggerCelebration(false), 4000);
-                  }}
-                  className="flex items-center gap-1.5 bg-black/30 hover:bg-black/50 backdrop-blur-md rounded-full px-3 py-1.5 border border-white/10 cursor-pointer transition active:scale-95"
-                  title="Célébrer notre amour ! 💖"
-                >
-                  <span className="font-[var(--font-dm-serif)] text-lg text-white/90 leading-none">
-                    {daysCount}
-                  </span>
-                  <span className="text-[9px] uppercase tracking-wider text-white/60 font-semibold">
-                    jours
-                  </span>
-                </div>
-                {/* Slideshow button */}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowSlideshow(true);
-                  }}
-                  className="size-9 rounded-full bg-black/30 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/70 hover:text-white hover:bg-black/50 transition-all active:scale-90"
-                  title="Lancer le Diaporama"
-                >
-                  <PlayCircle className="size-5" />
-                </button>
+                {/* Partner seen badge — clearly visible at top, never hidden by + button */}
+                {partnerStatus && (
+                  <div className="pointer-events-none">
+                    <div className="flex items-center gap-1.5 bg-black/50 backdrop-blur-md rounded-full px-3 py-1 border border-white/20 text-white shadow-lg">
+                      <span className="text-xs">{otherUserEmoji}</span>
+                      <span className="font-semibold text-[11px] text-white/95">
+                        {partnerStatus}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* ✨ TIME CAPSULE BADGE ("Ce jour-là...") */}
+                {timeCapsuleYears && (
+                  <div className="pointer-events-none animate-fade-in">
+                    <div className="flex items-center gap-1.5 bg-gradient-to-r from-amber-500/90 via-amber-600/90 to-yellow-500/90 backdrop-blur-md rounded-full px-3 py-1 border border-amber-300/40 text-white shadow-xl">
+                      <Sparkles className="size-3 text-amber-200" />
+                      <span className="text-[10px] font-bold tracking-wide">
+                        Ce jour-là... il y a {timeCapsuleYears} an{timeCapsuleYears > 1 ? "s" : ""} !
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
-
-              {/* ✨ TIME CAPSULE BADGE ("Ce jour-là...") */}
-              {timeCapsuleYears && (
-                <div className="absolute top-14 left-3 z-20 pointer-events-none animate-fade-in">
-                  <div className="flex items-center gap-1.5 bg-gradient-to-r from-amber-500/90 via-amber-600/90 to-yellow-500/90 backdrop-blur-md rounded-full px-3 py-1 border border-amber-300/40 text-white shadow-xl">
-                    <Sparkles className="size-3 text-amber-200" />
-                    <span className="text-[10px] font-bold tracking-wide">
-                      Ce jour-là... il y a {timeCapsuleYears} an{timeCapsuleYears > 1 ? "s" : ""} !
-                    </span>
-                  </div>
-                </div>
-              )}
 
               {/* TOP-RIGHT — Photo date & location + Devinette Game */}
               {(photoDateStr || photoLoc) && (
