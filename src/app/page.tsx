@@ -22,6 +22,7 @@ import { FlipCard } from "@/components/FlipCard";
 import MagicalText from "@/components/MagicalText";
 import { Loader2, Heart, MapPin, Calendar, PlayCircle, Sparkles } from "lucide-react";
 import { differenceInDays } from "date-fns";
+import type { Memory, Soundtrack } from "@/lib/supabase";
 import { useCoupleUser } from "@/lib/useCoupleUser";
 import UserSelectionModal from "@/components/UserSelectionModal";
 import { parseMemoryData, serializeMemoryData } from "@/lib/memoryNotes";
