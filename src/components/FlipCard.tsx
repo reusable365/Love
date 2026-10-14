@@ -17,6 +17,7 @@ interface FlipCardProps {
     onCaptionChange?: (val: string) => void;
     onEditToggle?: () => void;
     onSave?: () => void;
+    onDoubleTap?: (e: React.MouseEvent) => void;
     onFrontClick?: (e: React.MouseEvent) => void;
 }
 
@@ -28,6 +29,7 @@ export function FlipCard({
     onCaptionChange,
     onEditToggle,
     onSave,
+    onDoubleTap,
     onFrontClick
 }: FlipCardProps) {
     const [isFlipped, setIsFlipped] = useState(false);
@@ -42,14 +44,38 @@ export function FlipCard({
     const today = new Date();
     const daysCount = differenceInDays(today, startDate);
 
+    const lastTapRef = useRef(0);
+    const flipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
     // Flip to BACK (only from front face)
     const handleFrontClick = (e: React.MouseEvent) => {
         // Ignore clicks from interactive elements
         const target = e.target as HTMLElement;
-        if (target.closest('button') || target.closest('a')) return;
+        if (target.closest('button') || target.closest('a') || target.closest('[data-interactive]')) return;
+
+        const now = Date.now();
+        const timeSinceLastTap = now - lastTapRef.current;
+        lastTapRef.current = now;
+
+        if (timeSinceLastTap < 300) {
+            // DOUBLE TAP!
+            if (flipTimeoutRef.current) {
+                clearTimeout(flipTimeoutRef.current);
+                flipTimeoutRef.current = null;
+            }
+            onDoubleTap?.(e);
+            return;
+        }
+
+        // SINGLE TAP (potential flip)
         onFrontClick?.(e);
+
         if (!justClickedPen.current) {
-            setIsFlipped(true);
+            // Delay the flip to see if a second tap comes in
+            flipTimeoutRef.current = setTimeout(() => {
+                setIsFlipped(true);
+                flipTimeoutRef.current = null;
+            }, 320);
         }
         justClickedPen.current = false;
     };

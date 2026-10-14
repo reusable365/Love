@@ -83,17 +83,23 @@ export function useAddMemory() {
             is_daily_pick = false,
             photo_date,
             photo_location,
+            created_at,
         }: {
             image_url: string;
             caption: string;
             is_daily_pick?: boolean;
             photo_date?: string;
             photo_location?: string;
+            created_at?: string;
         }) => {
             const sb = getSupabase();
+            const insertPayload: Record<string, any> = { image_url, caption, is_daily_pick, photo_date, photo_location };
+            if (created_at) {
+                insertPayload.created_at = created_at;
+            }
             const { data, error } = await sb
                 .from("memories")
-                .insert({ image_url, caption, is_daily_pick, photo_date, photo_location })
+                .insert(insertPayload)
                 .select()
                 .single();
             if (error) throw error;

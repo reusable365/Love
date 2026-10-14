@@ -77,7 +77,7 @@ export default function InteractiveFlipCard({
         const timeSinceLastTap = now - lastTapRef.current;
         lastTapRef.current = now;
 
-        if (timeSinceLastTap < 350) {
+        if (timeSinceLastTap < 300) {
             // Double tap detected!
             setShowHeart(true);
             if (!memory.is_favorite) {
@@ -99,10 +99,10 @@ export default function InteractiveFlipCard({
         if (!handleDoubleTap()) {
             // Delay the flip to wait for potential second tap
             setTimeout(() => {
-                if (Date.now() - lastTapRef.current >= 350) {
+                if (Date.now() - lastTapRef.current >= 300) {
                     handleFlip();
                 }
-            }, 360);
+            }, 310);
         }
     };
 

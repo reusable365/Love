@@ -41,7 +41,6 @@ export default function DailySurprisePage() {
 
   // Double-tap heart animation
   const [showHeart, setShowHeart] = useState(false);
-  const lastTapRef = useRef(0);
 
   /* ─── Determine today's photo and song ─── */
   const { photo, song } = useMemo(() => {
@@ -130,25 +129,14 @@ export default function DailySurprisePage() {
     setIsEditingCaption(false);
   };
 
-  // Double-tap handler for Coup de 🩷
-  const handleDoubleTap = useCallback((e: React.MouseEvent) => {
-    // Ignore clicks from interactive elements (buttons, etc.)
-    const target = e.target as HTMLElement;
-    if (target.closest('button') || target.closest('a') || target.closest('[data-interactive]')) return;
-
+  // Handle favorite toggle (Double-tap)
+  const handleToggleFavorite = useCallback(() => {
     if (!photo) return;
-    const now = Date.now();
-    const timeSinceLastTap = now - lastTapRef.current;
-    lastTapRef.current = now;
-
-    if (timeSinceLastTap < 350) {
-      // Double tap detected!
-      setShowHeart(true);
-      if (!photo.is_favorite) {
-        toggleFavorite.mutate({ id: photo.id, is_favorite: true });
-      }
-      setTimeout(() => setShowHeart(false), 1200);
+    setShowHeart(true);
+    if (!photo.is_favorite) {
+      toggleFavorite.mutate({ id: photo.id, is_favorite: true });
     }
+    setTimeout(() => setShowHeart(false), 1200);
   }, [photo, toggleFavorite]);
 
   /* ─── Loading state ─── */
@@ -235,7 +223,7 @@ export default function DailySurprisePage() {
               onCaptionChange={setCaptionDraft}
               onEditToggle={() => setIsEditingCaption(!isEditingCaption)}
               onSave={handleSaveCaption}
-              onFrontClick={handleDoubleTap}
+              onDoubleTap={handleToggleFavorite}
             >
               {/* ═══ RECTO OVERLAY ═══ */}
 

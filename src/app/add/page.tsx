@@ -217,12 +217,27 @@ function PhotoForm({ showToast }: { showToast: (msg: string, t?: "success" | "er
                 }
             }
 
+            // If not forcing daily, schedule it at the end of the current adventure cycle
+            let scheduledCreatedAt: string | undefined = undefined;
+            if (!forceDaily && existingMemories.length > 0) {
+                const latestDate = existingMemories.reduce((max, m) => {
+                    if (!m.created_at) return max;
+                    const d = new Date(m.created_at);
+                    return d > max ? d : max;
+                }, new Date());
+                const nextDay = new Date(latestDate);
+                nextDay.setDate(nextDay.getDate() + 1);
+                nextDay.setHours(12, 0, 0, 0);
+                scheduledCreatedAt = nextDay.toISOString();
+            }
+
             await addMemory.mutateAsync({
                 image_url: urlData.publicUrl,
                 caption: finalCaption,
                 is_daily_pick: forceDaily,
                 photo_date: photoDate,
                 photo_location: photoLocation,
+                created_at: scheduledCreatedAt,
             });
 
             showToast("Photo added to your collection! 📸");
