@@ -441,9 +441,8 @@ export default function VaultPage() {
                             <div className="animate-fade-in-up">
                                 {(() => {
                                     const favorites = memories.filter(m => m.is_favorite);
-                                    const unlockedFavorites = favorites.filter(isUnlocked);
 
-                                    if (unlockedFavorites.length === 0) {
+                                    if (favorites.length === 0) {
                                         return (
                                             <div className="text-center py-12 flex flex-col items-center">
                                                 <Heart className="size-12 text-pink-200 mb-4" />
@@ -458,11 +457,11 @@ export default function VaultPage() {
                                             <div className="flex items-center gap-2 mb-6">
                                                 <Heart className="size-5 text-pink-400 fill-pink-400" />
                                                 <h2 className="text-xl font-[var(--font-dm-serif)] text-foreground">Coup de 🩷</h2>
-                                                <span className="text-xs text-muted-foreground ml-auto">{unlockedFavorites.length} favoris</span>
+                                                <span className="text-xs text-muted-foreground ml-auto">{favorites.length} favoris</span>
                                             </div>
 
                                             <div className="grid grid-cols-2 gap-4">
-                                                {unlockedFavorites.map((memory, i) => (
+                                                {favorites.map((memory, i) => (
                                                     <div
                                                         key={memory.id}
                                                         className={`w-full relative ${masonryHeights[i % masonryHeights.length]}`}
