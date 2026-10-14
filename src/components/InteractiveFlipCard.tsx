@@ -8,6 +8,7 @@ import { Heart, Loader2, Check } from "lucide-react";
 import { useToggleFavorite } from "@/hooks/useData";
 import LandscapePhoto from "@/components/LandscapePhoto";
 import { getQuoteForMemory } from "@/lib/quotes";
+import { parseMemoryData } from "@/lib/memoryNotes";
 
 interface InteractiveFlipCardProps {
     memory: {
@@ -33,10 +34,12 @@ export default function InteractiveFlipCard({
     const [isFlipped, setIsFlipped] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
 
+    // Fallback quote
+    const fallbackQuote = getQuoteForMemory(memory.id);
+    const parsed = parseMemoryData(memory.caption, fallbackQuote);
+
     // Ignore default filenames when initializing the edit draft
-    const initialCaption = (memory.caption && !/.*\.(jpe?g|png|heic|webp|gif)$/i.test(memory.caption))
-        ? memory.caption
-        : "";
+    const initialCaption = parsed.quote || "";
     const [caption, setCaption] = useState(initialCaption);
 
     const [justSaved, setJustSaved] = useState(false);
@@ -45,9 +48,6 @@ export default function InteractiveFlipCard({
 
     const queryClient = useQueryClient();
     const toggleFavorite = useToggleFavorite();
-
-    // Fallback quote
-    const fallbackQuote = getQuoteForMemory(memory.id);
 
     // Mutation to update caption
     const updateCaption = useMutation({

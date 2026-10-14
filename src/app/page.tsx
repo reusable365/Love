@@ -20,18 +20,37 @@ import MusicPlayer from "@/components/MusicPlayer";
 import SlideshowOverlay from "@/components/SlideshowOverlay";
 import { FlipCard } from "@/components/FlipCard";
 import MagicalText from "@/components/MagicalText";
-import { Loader2, Heart, MapPin, Calendar, PlayCircle } from "lucide-react";
+import { Loader2, Heart, MapPin, Calendar, PlayCircle, Sparkles } from "lucide-react";
 import { differenceInDays } from "date-fns";
-import type { Memory, Soundtrack } from "@/lib/supabase";
+import { useCoupleUser } from "@/lib/useCoupleUser";
+import UserSelectionModal from "@/components/UserSelectionModal";
+import { parseMemoryData, serializeMemoryData } from "@/lib/memoryNotes";
+import ConfettiHearts from "@/components/ConfettiHearts";
+import { usePrecacheTomorrow } from "@/lib/precacheTomorrow";
 
 export default function DailySurprisePage() {
   const { data: allMemories, isLoading: loadingMemories } = useMemories();
   const { data: allSoundtracks, isLoading: loadingSoundtracks } = useSoundtracks();
 
+  // Pre-cache tomorrow's content for instant offline-ready morning reveal
+  usePrecacheTomorrow(allMemories ?? [], allSoundtracks ?? []);
+
   const updateMemory = useUpdateMemory();
   const setDailyMemory = useSetDailyPickMemory();
   const setDailySoundtrack = useSetDailyPickSoundtrack();
   const toggleFavorite = useToggleFavorite();
+
+  // Couple Identity
+  const {
+    user,
+    userName,
+    userEmoji,
+    otherUser,
+    otherUserName,
+    otherUserEmoji,
+    selectUser,
+    isLoaded: userLoaded,
+  } = useCoupleUser();
 
   // Interaction State
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
@@ -39,8 +58,12 @@ export default function DailySurprisePage() {
   const [captionDraft, setCaptionDraft] = useState("");
   const [showSlideshow, setShowSlideshow] = useState(false);
 
-  // Double-tap heart animation
+  // Guessing game (Devinette où & quand)
+  const [isGuessHidden, setIsGuessHidden] = useState(false);
+
+  // Double-tap heart animation & Celebrations
   const [showHeart, setShowHeart] = useState(false);
+  const [triggerCelebration, setTriggerCelebration] = useState(false);
 
   /* ─── Determine today's photo and song ─── */
   const { photo, song } = useMemo(() => {
@@ -119,6 +142,59 @@ export default function DailySurprisePage() {
   // Days counter
   const daysCount = differenceInDays(new Date(), new Date(2002, 1, 10));
 
+  // Parsed memory structure for notes and seen timestamps
+  const parsedMemory = useMemo(() => {
+    return parseMemoryData(photo?.caption);
+  }, [photo?.caption]);
+
+  // Track active partner's first view of today's surprise
+  useEffect(() => {
+    if (!photo || !user || !userLoaded) return;
+    const todayStr = new Date().toLocaleDateString("fr-CA");
+    const userSeenKey = user === "stephane" ? "stephane_seen_at" : "caroline_seen_at";
+    const currentSeenAt = parsedMemory[userSeenKey];
+    const isToday = currentSeenAt && new Date(currentSeenAt).toLocaleDateString("fr-CA") === todayStr;
+
+    if (!isToday) {
+      const updated = {
+        ...parsedMemory,
+        [userSeenKey]: new Date().toISOString(),
+      };
+      updateMemory.mutate({
+        id: photo.id,
+        caption: serializeMemoryData(updated),
+      });
+    }
+  }, [photo?.id, user, userLoaded]);
+
+  // Partner status badge on the card front
+  const partnerStatus = useMemo(() => {
+    if (!otherUser) return null;
+    const todayStr = new Date().toLocaleDateString("fr-CA");
+    const seenAt = otherUser === "stephane" ? parsedMemory.stephane_seen_at : parsedMemory.caroline_seen_at;
+    const isToday = seenAt && new Date(seenAt).toLocaleDateString("fr-CA") === todayStr;
+
+    if (isToday && seenAt) {
+      const timeStr = new Date(seenAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+      const verb = otherUser === "caroline" ? "est passée" : "est passé";
+      return `${otherUserName} ${verb} à ${timeStr} 🩷`;
+    }
+    return `En attente de ${otherUserName}...`;
+  }, [otherUser, otherUserName, parsedMemory]);
+
+  // Save couple note callback
+  const handleSaveCoupleNote = useCallback((noteText: string, partner: "stephane" | "caroline") => {
+    if (!photo) return;
+    const updated = {
+      ...parsedMemory,
+      [partner === "stephane" ? "note_stephane" : "note_caroline"]: noteText,
+    };
+    updateMemory.mutate({
+      id: photo.id,
+      caption: serializeMemoryData(updated),
+    });
+  }, [photo, parsedMemory, updateMemory]);
+
   /* ─── Handlers ─── */
   const toggleMusic = () => setIsMusicPlaying(!isMusicPlaying);
 
@@ -133,11 +209,44 @@ export default function DailySurprisePage() {
   const handleToggleFavorite = useCallback(() => {
     if (!photo) return;
     setShowHeart(true);
+    setTriggerCelebration(true);
+    setTimeout(() => setTriggerCelebration(false), 4000);
     if (!photo.is_favorite) {
       toggleFavorite.mutate({ id: photo.id, is_favorite: true });
     }
     setTimeout(() => setShowHeart(false), 1200);
   }, [photo, toggleFavorite]);
+
+  // Capsule Temporelle (« Ce jour-là... » même jour de l'année)
+  const timeCapsuleYears = useMemo(() => {
+    if (!photo?.photo_date) return null;
+    try {
+      const pDate = new Date(photo.photo_date);
+      const today = new Date();
+      if (pDate.getDate() === today.getDate() && pDate.getMonth() === today.getMonth()) {
+        const diff = today.getFullYear() - pDate.getFullYear();
+        if (diff > 0) return diff;
+      }
+    } catch {}
+    return null;
+  }, [photo?.photo_date]);
+
+  // Milestone Celebration Check (round days, anniversaries)
+  const isMilestone = useMemo(() => {
+    const today = new Date();
+    const isRoundDays = daysCount > 0 && daysCount % 100 === 0;
+    const isAnniversary = today.getMonth() === 1 && today.getDate() === 10;
+    const isValentine = today.getMonth() === 1 && today.getDate() === 14;
+    return isRoundDays || isAnniversary || isValentine;
+  }, [daysCount]);
+
+  useEffect(() => {
+    if (isMilestone) {
+      setTriggerCelebration(true);
+      const t = setTimeout(() => setTriggerCelebration(false), 5000);
+      return () => clearTimeout(t);
+    }
+  }, [isMilestone]);
 
   /* ─── Loading state ─── */
   if (isLoading) {
@@ -224,12 +333,34 @@ export default function DailySurprisePage() {
               onEditToggle={() => setIsEditingCaption(!isEditingCaption)}
               onSave={handleSaveCaption}
               onDoubleTap={handleToggleFavorite}
+              activeUser={user}
+              onSaveNote={handleSaveCoupleNote}
             >
               {/* ═══ RECTO OVERLAY ═══ */}
 
+              {/* BOTTOM-LEFT — Partner seen badge */}
+              {partnerStatus && (
+                <div className="absolute bottom-4 left-4 z-20 pointer-events-none">
+                  <div className="flex items-center gap-1.5 bg-black/40 backdrop-blur-md rounded-full px-3 py-1.5 border border-white/15 text-white shadow-lg">
+                    <span className="text-sm">{otherUserEmoji}</span>
+                    <span className="font-medium text-[10px] text-white/90">
+                      {partnerStatus}
+                    </span>
+                  </div>
+                </div>
+              )}
+
               {/* TOP-LEFT — Days counter + Slideshow button */}
               <div className="absolute top-3 left-3 z-20 flex items-center gap-2">
-                <div className="flex items-center gap-1.5 bg-black/30 backdrop-blur-md rounded-full px-3 py-1.5 border border-white/10 pointer-events-none">
+                <div
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setTriggerCelebration(true);
+                    setTimeout(() => setTriggerCelebration(false), 4000);
+                  }}
+                  className="flex items-center gap-1.5 bg-black/30 hover:bg-black/50 backdrop-blur-md rounded-full px-3 py-1.5 border border-white/10 cursor-pointer transition active:scale-95"
+                  title="Célébrer notre amour ! 💖"
+                >
                   <span className="font-[var(--font-dm-serif)] text-lg text-white/90 leading-none">
                     {daysCount}
                   </span>
@@ -250,23 +381,55 @@ export default function DailySurprisePage() {
                 </button>
               </div>
 
-              {/* TOP-RIGHT — Photo date & location (discreet) */}
-              {(photoDateStr || photoLoc) && (
-                <div className="absolute top-3 right-3 z-20 pointer-events-none">
-                  <div className="flex flex-col items-end gap-1">
-                    {photoDateStr && (
-                      <span className="flex items-center gap-1 bg-black/30 backdrop-blur-md rounded-full px-2.5 py-1 border border-white/10 text-white/80 text-[10px] font-medium">
-                        <Calendar className="size-3 opacity-60" />
-                        {photoDateStr}
-                      </span>
-                    )}
-                    {photoLoc && (
-                      <span className="flex items-center gap-1 bg-black/30 backdrop-blur-md rounded-full px-2.5 py-1 border border-white/10 text-white/80 text-[10px] font-medium">
-                        <MapPin className="size-3 opacity-60" />
-                        {photoLoc}
-                      </span>
-                    )}
+              {/* ✨ TIME CAPSULE BADGE ("Ce jour-là...") */}
+              {timeCapsuleYears && (
+                <div className="absolute top-14 left-3 z-20 pointer-events-none animate-fade-in">
+                  <div className="flex items-center gap-1.5 bg-gradient-to-r from-amber-500/90 via-amber-600/90 to-yellow-500/90 backdrop-blur-md rounded-full px-3 py-1 border border-amber-300/40 text-white shadow-xl">
+                    <Sparkles className="size-3 text-amber-200" />
+                    <span className="text-[10px] font-bold tracking-wide">
+                      Ce jour-là... il y a {timeCapsuleYears} an{timeCapsuleYears > 1 ? "s" : ""} !
+                    </span>
                   </div>
+                </div>
+              )}
+
+              {/* TOP-RIGHT — Photo date & location + Devinette Game */}
+              {(photoDateStr || photoLoc) && (
+                <div className="absolute top-3 right-3 z-20">
+                  {isGuessHidden ? (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsGuessHidden(false);
+                      }}
+                      className="flex items-center gap-1.5 bg-black/50 hover:bg-black/70 backdrop-blur-md rounded-full px-3 py-1.5 border border-white/25 text-white text-[10px] font-medium transition shadow-md active:scale-95"
+                    >
+                      <span>🔍</span>
+                      <span>Où & Quand ?</span>
+                    </button>
+                  ) : (
+                    <div
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsGuessHidden(true);
+                      }}
+                      className="flex flex-col items-end gap-1 cursor-pointer group"
+                      title="Cliquer pour masquer (jeu devinette)"
+                    >
+                      {photoDateStr && (
+                        <span className="flex items-center gap-1 bg-black/30 group-hover:bg-black/50 backdrop-blur-md rounded-full px-2.5 py-1 border border-white/10 text-white/80 text-[10px] font-medium transition">
+                          <Calendar className="size-3 opacity-60" />
+                          {photoDateStr}
+                        </span>
+                      )}
+                      {photoLoc && (
+                        <span className="flex items-center gap-1 bg-black/30 group-hover:bg-black/50 backdrop-blur-md rounded-full px-2.5 py-1 border border-white/10 text-white/80 text-[10px] font-medium transition">
+                          <MapPin className="size-3 opacity-60" />
+                          {photoLoc}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -327,6 +490,14 @@ export default function DailySurprisePage() {
           </div>
         )}
       </div>
+ 
+      {/* First-time Partner Selector Modal */}
+      {userLoaded && !user && (
+        <UserSelectionModal onSelect={selectUser} />
+      )}
+
+      {/* Confetti Celebration on milestones or celebrations */}
+      <ConfettiHearts active={triggerCelebration} />
 
       <BottomNav />
     </div>

@@ -7,11 +7,14 @@ import LandscapePhoto from "./LandscapePhoto";
 import { Memory } from "@/lib/supabase";
 import { getQuoteForMemory } from "@/lib/quotes";
 
+import { parseMemoryData } from "@/lib/memoryNotes";
+import { CoupleUser } from "@/lib/useCoupleUser";
+
 interface FlipCardProps {
     memory: Memory;
     children?: ReactNode;
 
-    // Editing Props
+    // Editing Props (legacy or general)
     isEditing?: boolean;
     captionDraft?: string;
     onCaptionChange?: (val: string) => void;
@@ -19,6 +22,10 @@ interface FlipCardProps {
     onSave?: () => void;
     onDoubleTap?: (e: React.MouseEvent) => void;
     onFrontClick?: (e: React.MouseEvent) => void;
+
+    // Couple notes
+    activeUser?: CoupleUser | null;
+    onSaveNote?: (note: string, partner: CoupleUser) => void;
 }
 
 export function FlipCard({
@@ -30,14 +37,20 @@ export function FlipCard({
     onEditToggle,
     onSave,
     onDoubleTap,
-    onFrontClick
+    onFrontClick,
+    activeUser,
+    onSaveNote
 }: FlipCardProps) {
     const [isFlipped, setIsFlipped] = useState(false);
+    const [editingPartner, setEditingPartner] = useState<CoupleUser | null>(null);
+    const [draftNote, setDraftNote] = useState("");
+
     // Guard: prevent flip right after pen click
     const justClickedPen = useRef(false);
 
     // Fallback quote
     const fallbackQuote = getQuoteForMemory(memory.id);
+    const parsed = parseMemoryData(memory.caption, fallbackQuote);
 
     // Start Date: 10 Feb 2002
     const startDate = new Date(2002, 1, 10);
@@ -82,7 +95,7 @@ export function FlipCard({
 
     // Flip to FRONT (only from back face, and only if NOT editing)
     const handleBackClick = () => {
-        if (!isEditing && !justClickedPen.current) {
+        if (!isEditing && !editingPartner && !justClickedPen.current) {
             setIsFlipped(false);
         }
         justClickedPen.current = false;
@@ -92,7 +105,6 @@ export function FlipCard({
         <div
             className="relative h-full w-full group cursor-pointer"
             style={{ perspective: "1200px" }}
-        // NO onClick here — each face handles its own clicks
         >
             {/* Inner container - pure CSS transition */}
             <div
@@ -115,10 +127,10 @@ export function FlipCard({
                 >
                     <LandscapePhoto
                         src={memory.image_url}
-                        alt={memory.caption}
+                        alt={parsed.quote || memory.caption}
                         wrapperClassName="pointer-events-none"
                     />
-                    {/* Front overlay (children: days counter, slideshow btn etc) */}
+                    {/* Front overlay (children: days counter, slideshow btn, partner status, etc) */}
                     <div className="absolute inset-0 z-10">
                         {children}
                     </div>
@@ -126,7 +138,7 @@ export function FlipCard({
 
                 {/* ═══ BACK ═══ */}
                 <div
-                    className="absolute inset-0 h-full w-full text-white flex flex-col items-center justify-center p-8 text-center overflow-hidden rounded-[32px] cursor-default"
+                    className="absolute inset-0 h-full w-full text-white flex flex-col items-center justify-between p-6 text-center overflow-y-auto rounded-[32px] cursor-default custom-scrollbar"
                     style={{
                         backfaceVisibility: "hidden",
                         WebkitBackfaceVisibility: "hidden",
@@ -144,85 +156,171 @@ export function FlipCard({
                             className="h-full w-full object-cover"
                             style={{ filter: "blur(20px)", transform: "scale(1.2)", opacity: 0.9 }}
                         />
-                        <div className="absolute inset-0 bg-black/30" />
+                        <div className="absolute inset-0 bg-black/40" />
                     </div>
 
-                    {/* ✏️ PEN BUTTON — top right */}
-                    {!isEditing && onEditToggle && (
-                        <button
-                            type="button"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                justClickedPen.current = true;
-                                onEditToggle();
-                            }}
-                            className="absolute top-6 right-6 size-14 rounded-full bg-white/20 backdrop-blur-xl border border-white/30 flex items-center justify-center text-[#E8B4A6] shadow-2xl hover:scale-110 active:scale-95 transition-all z-50"
-                            title="Écrire une note"
-                        >
-                            <PenLine size={24} />
-                        </button>
-                    )}
-
-                    {/* Content */}
-                    <div className="relative z-10 flex flex-col items-center gap-6 max-w-md w-full">
-
-                        <div className="text-[10px] tracking-[0.4em] uppercase text-white/40 font-bold">
+                    {/* Header / Quote */}
+                    <div className="relative z-10 flex flex-col items-center gap-1.5 max-w-md w-full pt-1">
+                        <div className="text-[10px] tracking-[0.3em] uppercase text-white/40 font-bold">
                             Good Vibe
                         </div>
+                        <div
+                            className="text-2xl md:text-3xl leading-snug text-white/95 drop-shadow px-2"
+                            style={{ fontFamily: "'Caveat', cursive" }}
+                        >
+                            &ldquo;{parsed.quote}&rdquo;
+                        </div>
+                    </div>
 
-                        {isEditing ? (
-                            <div className="w-full flex flex-col items-center gap-6" onClick={(e) => e.stopPropagation()}>
-                                <textarea
-                                    value={captionDraft}
-                                    onChange={(e) => onCaptionChange?.(e.target.value)}
-                                    className="w-full bg-white/5 text-[#E8B4A6] text-center font-[var(--font-caveat)] text-3xl leading-relaxed focus:outline-none resize-none rounded-2xl p-6 border border-white/10 shadow-inner min-h-[150px]"
-                                    autoFocus
-                                    maxLength={280}
-                                    placeholder="Écris un souvenir... (max 7 lignes)"
-                                />
-                                <div className="flex gap-4">
+                    {/* Couple Notes (Stéphane & Caroline) */}
+                    <div className="relative z-10 w-full max-w-sm flex flex-col gap-2.5 my-2">
+                        {/* Stéphane Note */}
+                        <div className="rounded-2xl p-3 bg-black/40 backdrop-blur-md border border-white/10 text-left">
+                            <div className="flex items-center justify-between mb-1">
+                                <span className="text-[11px] font-bold uppercase tracking-wider text-[#E8B4A6] flex items-center gap-1">
+                                    👑 Mot de Stéphane
+                                </span>
+                                {activeUser === "stephane" && editingPartner !== "stephane" && (
                                     <button
-                                        onClick={(e) => { e.stopPropagation(); onEditToggle?.(); }}
-                                        className="size-12 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition"
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            justClickedPen.current = true;
+                                            setDraftNote(parsed.note_stephane);
+                                            setEditingPartner("stephane");
+                                        }}
+                                        className="text-[10px] bg-white/10 hover:bg-white/20 px-2.5 py-0.5 rounded-full text-white/90 transition flex items-center gap-1"
                                     >
-                                        <X size={24} />
+                                        <PenLine size={10} />
+                                        {parsed.note_stephane ? "Modifier" : "Écrire"}
                                     </button>
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); onSave?.(); }}
-                                        className="px-8 py-3 rounded-full bg-[#E8B4A6] text-[#422B26] font-extrabold hover:scale-105 transition shadow-lg flex items-center gap-2"
-                                    >
-                                        <Save size={20} />
-                                        Mémoriser
-                                    </button>
+                                )}
+                            </div>
+                            {editingPartner === "stephane" ? (
+                                <div onClick={(e) => e.stopPropagation()} className="flex flex-col gap-2 mt-1">
+                                    <textarea
+                                        value={draftNote}
+                                        onChange={(e) => setDraftNote(e.target.value)}
+                                        placeholder="Écris ton mot doux pour Caroline..."
+                                        className="w-full bg-white/10 text-[#E8B4A6] font-[var(--font-caveat)] text-xl p-2.5 rounded-xl border border-white/20 focus:outline-none resize-none leading-relaxed"
+                                        rows={3}
+                                        maxLength={280}
+                                        autoFocus
+                                    />
+                                    <div className="flex justify-end gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setEditingPartner(null)}
+                                            className="text-xs px-3 py-1 bg-white/10 hover:bg-white/20 rounded-full text-white/70"
+                                        >
+                                            Annuler
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                onSaveNote?.(draftNote, "stephane");
+                                                setEditingPartner(null);
+                                            }}
+                                            className="text-xs px-4 py-1 bg-[#E8B4A6] text-[#422B26] font-extrabold rounded-full flex items-center gap-1 shadow-md hover:scale-105 transition"
+                                        >
+                                            <Save size={12} />
+                                            Enregistrer
+                                        </button>
+                                    </div>
                                 </div>
-                            </div>
-                        ) : (
-                            <div
-                                className="text-4xl md:text-5xl leading-tight text-white drop-shadow-2xl px-2"
-                                style={{ fontFamily: "'Caveat', cursive" }}
-                            >
-                                &ldquo;{
-                                    (memory.caption && !/.*\.(jpe?g|png|heic|webp|gif)$/i.test(memory.caption))
-                                        ? memory.caption
-                                        : fallbackQuote
-                                }&rdquo;
-                            </div>
-                        )}
+                            ) : (
+                                <p className="font-[var(--font-caveat)] text-xl text-white/95 leading-relaxed min-h-[1.5rem]">
+                                    {parsed.note_stephane ? (
+                                        parsed.note_stephane
+                                    ) : (
+                                        <span className="text-xs font-sans text-white/40 italic">
+                                            {activeUser === "stephane" ? "Clique sur 'Écrire' pour laisser un mot doux à Caroline" : "Pas encore de mot de Stéphane aujourd'hui"}
+                                        </span>
+                                    )}
+                                </p>
+                            )}
+                        </div>
 
-                        {!isEditing && (
-                            <div className="mt-6 flex flex-col items-center gap-1">
-                                <div className="text-[10px] tracking-[0.2em] uppercase text-white/30">
-                                    Journey
-                                </div>
-                                <div className="font-[var(--font-dm-serif)] text-4xl md:text-5xl text-white/90">
-                                    {daysCount}
-                                </div>
-                                <div className="text-sm uppercase tracking-widest text-[#E8B4A6]/60 font-medium">
-                                    days together
-                                </div>
-                                <div className="w-12 h-0.5 bg-[#E8B4A6]/30 mt-3 rounded-full" />
+                        {/* Caroline Note */}
+                        <div className="rounded-2xl p-3 bg-black/40 backdrop-blur-md border border-white/10 text-left">
+                            <div className="flex items-center justify-between mb-1">
+                                <span className="text-[11px] font-bold uppercase tracking-wider text-pink-300 flex items-center gap-1">
+                                    🌸 Réponse de Caroline
+                                </span>
+                                {activeUser === "caroline" && editingPartner !== "caroline" && (
+                                    <button
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            justClickedPen.current = true;
+                                            setDraftNote(parsed.note_caroline);
+                                            setEditingPartner("caroline");
+                                        }}
+                                        className="text-[10px] bg-white/10 hover:bg-white/20 px-2.5 py-0.5 rounded-full text-white/90 transition flex items-center gap-1"
+                                    >
+                                        <PenLine size={10} />
+                                        {parsed.note_caroline ? "Modifier" : "Répondre"}
+                                    </button>
+                                )}
                             </div>
-                        )}
+                            {editingPartner === "caroline" ? (
+                                <div onClick={(e) => e.stopPropagation()} className="flex flex-col gap-2 mt-1">
+                                    <textarea
+                                        value={draftNote}
+                                        onChange={(e) => setDraftNote(e.target.value)}
+                                        placeholder="Écris ton mot doux pour Stéphane..."
+                                        className="w-full bg-white/10 text-pink-200 font-[var(--font-caveat)] text-xl p-2.5 rounded-xl border border-white/20 focus:outline-none resize-none leading-relaxed"
+                                        rows={3}
+                                        maxLength={280}
+                                        autoFocus
+                                    />
+                                    <div className="flex justify-end gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setEditingPartner(null)}
+                                            className="text-xs px-3 py-1 bg-white/10 hover:bg-white/20 rounded-full text-white/70"
+                                        >
+                                            Annuler
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                onSaveNote?.(draftNote, "caroline");
+                                                setEditingPartner(null);
+                                            }}
+                                            className="text-xs px-4 py-1 bg-pink-400 text-white font-extrabold rounded-full flex items-center gap-1 shadow-md hover:scale-105 transition"
+                                        >
+                                            <Save size={12} />
+                                            Enregistrer
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <p className="font-[var(--font-caveat)] text-xl text-white/95 leading-relaxed min-h-[1.5rem]">
+                                    {parsed.note_caroline ? (
+                                        parsed.note_caroline
+                                    ) : (
+                                        <span className="text-xs font-sans text-white/40 italic">
+                                            {activeUser === "caroline" ? "Clique sur 'Répondre' pour laisser un mot doux à Stéphane" : "Pas encore de mot de Caroline aujourd'hui"}
+                                        </span>
+                                    )}
+                                </p>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Footer Journey */}
+                    <div className="relative z-10 flex flex-col items-center gap-0.5 pb-1">
+                        <div className="text-[9px] tracking-[0.2em] uppercase text-white/30">
+                            Journey
+                        </div>
+                        <div className="font-[var(--font-dm-serif)] text-3xl md:text-4xl text-white/90 leading-tight">
+                            {daysCount}
+                        </div>
+                        <div className="text-[10px] uppercase tracking-widest text-[#E8B4A6]/60 font-medium">
+                            days together
+                        </div>
+                        <div className="w-10 h-0.5 bg-[#E8B4A6]/30 mt-1 rounded-full" />
                     </div>
                 </div>
             </div>
