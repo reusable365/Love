@@ -194,7 +194,20 @@ export default function DailySurprisePage() {
       id: photo.id,
       caption: serializeMemoryData(updated),
     });
-  }, [photo, parsedMemory, updateMemory]);
+
+    // Send push notification to the partner
+    const targetRecipient = partner === "stephane" ? "caroline" : "stephane";
+    fetch("/api/send-push", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        recipient: targetRecipient,
+        senderName: userName || (partner === "stephane" ? "Stéphane" : "Caroline"),
+        senderEmoji: userEmoji || (partner === "stephane" ? "👑" : "🌸"),
+        noteSnippet: noteText,
+      }),
+    }).catch((err) => console.warn("Push dispatch error:", err));
+  }, [photo, parsedMemory, updateMemory, userName, userEmoji]);
 
   /* ─── Handlers ─── */
   const toggleMusic = () => setIsMusicPlaying(!isMusicPlaying);

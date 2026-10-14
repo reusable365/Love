@@ -1,16 +1,52 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Heart, Sparkles, Calendar, UserCheck, Flame } from "lucide-react";
+import { Heart, Sparkles, Calendar, UserCheck, Flame, Bell, BellRing, CheckCircle2, Loader2 } from "lucide-react";
 import BackgroundOrbs from "@/components/BackgroundOrbs";
 import BottomNav from "@/components/BottomNav";
 import { useCoupleUser, PARTNER_NAMES, PARTNER_EMOJIS, CoupleUser } from "@/lib/useCoupleUser";
 import { useMemories } from "@/hooks/useData";
 import { differenceInDays, differenceInYears, differenceInMonths } from "date-fns";
+import { subscribePartnerToPush, getNotificationPermissionStatus } from "@/lib/pushNotifications";
 
 export default function ProfilePage() {
-    const { user, selectUser, isLoaded } = useCoupleUser();
+    const { user, selectUser, otherUserName, isLoaded } = useCoupleUser();
     const { data: memories = [] } = useMemories();
+
+    const [isSubscribing, setIsSubscribing] = useState(false);
+    const [subStatus, setSubStatus] = useState<string | null>(null);
+    const [hasPermission, setHasPermission] = useState(false);
+
+    useEffect(() => {
+        getNotificationPermissionStatus().then((status) => {
+            if (status === "granted") {
+                setHasPermission(true);
+            }
+        });
+    }, []);
+
+    const handleEnableNotifications = async () => {
+        if (!user) {
+            setSubStatus("Choisis d'abord qui utilise ce téléphone");
+            return;
+        }
+
+        setIsSubscribing(true);
+        setSubStatus(null);
+
+        const success = await subscribePartnerToPush(user);
+        setIsSubscribing(false);
+
+        if (success) {
+            setHasPermission(true);
+            setSubStatus("Notifications activées avec succès ! 💌");
+        } else {
+            setSubStatus("Impossible d'activer les notifications (autorise les notifications dans ton navigateur)");
+        }
+
+        setTimeout(() => setSubStatus(null), 4000);
+    };
 
     const startDate = new Date(2002, 1, 10); // 10 Feb 2002
     const now = new Date();
@@ -86,6 +122,71 @@ export default function ProfilePage() {
                             );
                         })}
                     </div>
+                </motion.div>
+
+                {/* 🔔 Notifications Card */}
+                <motion.div
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                    className="w-full max-w-sm rounded-3xl p-4 glass-light border border-white/30 shadow-md flex flex-col gap-3 mb-4"
+                >
+                    <div className="flex items-center justify-between text-xs font-medium text-muted-foreground px-1">
+                        <span className="flex items-center gap-1.5">
+                            {hasPermission ? (
+                                <BellRing className="size-4 text-primary animate-pulse" />
+                            ) : (
+                                <Bell className="size-4 text-primary" />
+                            )}
+                            Notifications des mots doux
+                        </span>
+                        {hasPermission && (
+                            <span className="text-[10px] font-bold text-emerald-500 flex items-center gap-1 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                                <CheckCircle2 className="size-3" /> Activées
+                            </span>
+                        )}
+                    </div>
+
+                    <p className="text-[11px] text-muted-foreground text-left px-1 leading-relaxed">
+                        Reçois une notification instantanée dès que {otherUserName || "ton partenaire"} t&apos;écrit un mot d&apos;amour au dos de la photo.
+                    </p>
+
+                    <button
+                        onClick={handleEnableNotifications}
+                        disabled={isSubscribing}
+                        className={`w-full py-2.5 px-4 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm ${
+                            hasPermission
+                                ? "bg-card/70 border border-primary/30 text-foreground hover:bg-card"
+                                : "bg-gradient-to-r from-primary to-accent text-primary-foreground hover:opacity-95"
+                        }`}
+                    >
+                        {isSubscribing ? (
+                            <>
+                                <Loader2 className="size-4 animate-spin" />
+                                <span>Activation en cours...</span>
+                            </>
+                        ) : hasPermission ? (
+                            <>
+                                <BellRing className="size-4 text-primary" />
+                                <span>Réactualiser mes notifications</span>
+                            </>
+                        ) : (
+                            <>
+                                <Bell className="size-4" />
+                                <span>M&apos;avertir quand {otherUserName || "mon amour"} m&apos;écrit</span>
+                            </>
+                        )}
+                    </button>
+
+                    {subStatus && (
+                        <motion.p
+                            initial={{ opacity: 0, y: -4 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="text-[11px] font-medium text-primary px-1"
+                        >
+                            {subStatus}
+                        </motion.p>
+                    )}
                 </motion.div>
 
                 {/* Counter & Milestones */}
