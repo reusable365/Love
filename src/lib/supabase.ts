@@ -19,7 +19,12 @@ export function getSupabase(): SupabaseClient {
             // Return a dummy client that won't crash — queries will simply fail gracefully
             _supabase = createClient("https://placeholder.supabase.co", key || "placeholder");
         } else {
-            _supabase = createClient(url, key);
+            _supabase = createClient(url, key, {
+                auth: {
+                    persistSession: false,
+                    autoRefreshToken: false,
+                },
+            });
         }
     }
     return _supabase;

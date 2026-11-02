@@ -249,7 +249,9 @@ function PhotoForm({ showToast }: { showToast: (msg: string, t?: "success" | "er
             setPhotoLocation(undefined);
         } catch (err) {
             console.error(err);
-            showToast("Failed to upload photo. Please try again.", "error");
+            const e = err as any;
+            const errorMsg = (e && (e.message || e.error_description || e.error)) ? String(e.message || e.error_description || e.error) : "Erreur lors de l'enregistrement de la photo";
+            showToast(errorMsg, "error");
         } finally {
             setUploading(false);
         }
@@ -258,9 +260,9 @@ function PhotoForm({ showToast }: { showToast: (msg: string, t?: "success" | "er
     return (
         <div className="flex flex-col gap-6 p-6 rounded-[32px] bg-card/80 backdrop-blur-md shadow-xl border border-white/50">
             {/* Upload area */}
-            <div
-                onClick={() => fileInputRef.current?.click()}
-                className="relative cursor-pointer group"
+            <label
+                htmlFor="photo-upload"
+                className="relative cursor-pointer group block"
             >
                 <input
                     ref={fileInputRef}
@@ -284,7 +286,7 @@ function PhotoForm({ showToast }: { showToast: (msg: string, t?: "success" | "er
                         <p className="text-sm text-muted-foreground font-medium">Tap to select a photo</p>
                     </div>
                 )}
-            </div>
+            </label>
 
             {/* Duplicate warning */}
             <AnimatePresence>
