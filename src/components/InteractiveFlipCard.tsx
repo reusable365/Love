@@ -1,14 +1,13 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { getSupabase } from "@/lib/supabase";
-import { Heart, Loader2, Check } from "lucide-react";
-import { useToggleFavorite } from "@/hooks/useData";
+import { Heart, Loader2, Check, Eye } from "lucide-react";
+import { useToggleFavorite, useUpdateMemory } from "@/hooks/useData";
 import LandscapePhoto from "@/components/LandscapePhoto";
 import { getQuoteForMemory } from "@/lib/quotes";
-import { parseMemoryData } from "@/lib/memoryNotes";
+import { parseMemoryData, incrementMemoryView, getAffectionLevel, getTotalViews, serializeMemoryData } from "@/lib/memoryNotes";
+import { useCoupleUser } from "@/lib/useCoupleUser";
 
 interface InteractiveFlipCardProps {
     memory: {
@@ -31,43 +30,62 @@ export default function InteractiveFlipCard({
     selected,
     enableSelection = false
 }: InteractiveFlipCardProps) {
+    const { user } = useCoupleUser();
     const [isFlipped, setIsFlipped] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
 
     // Fallback quote
     const fallbackQuote = getQuoteForMemory(memory.id);
     const parsed = parseMemoryData(memory.caption, fallbackQuote);
+    const totalViews = getTotalViews(parsed);
+    const affection = getAffectionLevel(totalViews);
 
     // Ignore default filenames when initializing the edit draft
     const initialCaption = parsed.quote || "";
     const [caption, setCaption] = useState(initialCaption);
 
+    useEffect(() => {
+        if (!isEditing) {
+            setCaption(parsed.quote || "");
+        }
+    }, [parsed.quote, isEditing]);
+
     const [justSaved, setJustSaved] = useState(false);
     const [showHeart, setShowHeart] = useState(false);
     const lastTapRef = useRef(0);
 
-    const queryClient = useQueryClient();
     const toggleFavorite = useToggleFavorite();
-
-    // Mutation to update caption
-    const updateCaption = useMutation({
-        mutationFn: async (newCaption: string) => {
-            const { error } = await getSupabase()
-                .from("memories")
-                .update({ caption: newCaption })
-                .eq("id", memory.id);
-            if (error) throw error;
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["memories"] });
-            setJustSaved(true);
-            setTimeout(() => setJustSaved(false), 2000);
-        },
-    });
+    const updateMemory = useUpdateMemory();
 
     const handleFlip = () => {
         if (!isEditing) {
-            setIsFlipped(!isFlipped);
+            const nextFlipped = !isFlipped;
+            setIsFlipped(nextFlipped);
+
+            // Record a view for the active partner when admiring the back of the photo
+            if (nextFlipped && user) {
+                const sessionKey = `love_flip_view_${memory.id}_${user}`;
+                let canCount = false;
+                try {
+                    const last = localStorage.getItem(sessionKey) || sessionStorage.getItem(sessionKey);
+                    const COOLDOWN_MS = 5 * 60 * 1000; // 5 min cooldown in Vault
+                    canCount = !last || (Date.now() - Number(last) > COOLDOWN_MS);
+                    if (canCount) {
+                        try { localStorage.setItem(sessionKey, String(Date.now())); } catch {}
+                        try { sessionStorage.setItem(sessionKey, String(Date.now())); } catch {}
+                    }
+                } catch {
+                    canCount = true;
+                }
+
+                if (canCount) {
+                    const { newCaption } = incrementMemoryView(memory.caption, user, fallbackQuote);
+                    updateMemory.mutate({
+                        id: memory.id,
+                        caption: newCaption,
+                    });
+                }
+            }
         }
     };
 
@@ -108,8 +126,18 @@ export default function InteractiveFlipCard({
 
     const handleBlur = () => {
         setIsEditing(false);
-        if (caption !== memory.caption) {
-            updateCaption.mutate(caption);
+        const trimmed = caption.trim();
+        if (trimmed !== (parsed.quote || "")) {
+            const updated = {
+                ...parsed,
+                quote: trimmed,
+            };
+            updateMemory.mutate({
+                id: memory.id,
+                caption: serializeMemoryData(updated),
+            });
+            setJustSaved(true);
+            setTimeout(() => setJustSaved(false), 2000);
         }
     };
 
@@ -186,6 +214,16 @@ export default function InteractiveFlipCard({
                         )}
                     </AnimatePresence>
 
+                    {/* Views badge on front */}
+                    {totalViews > 0 && (
+                        <div className="absolute bottom-3 left-3 z-20 pointer-events-none">
+                            <div className="flex items-center gap-1.5 bg-black/45 backdrop-blur-md px-2 py-0.5 rounded-full text-[10px] text-white/95 border border-white/15 shadow-sm">
+                                <Eye className="size-3 text-amber-300" />
+                                <span>👑 {parsed.stephane_views_count} · 🌸 {parsed.caroline_views_count}</span>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Flip hint on hover */}
                     <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex justify-center pb-2">
                         <span className="text-white/90 text-xs font-medium tracking-wider uppercase border border-white/30 rounded-full px-3 py-1 backdrop-blur-sm">
@@ -210,7 +248,7 @@ export default function InteractiveFlipCard({
                         {/* Paper header */}
                         <div className="flex justify-between items-center mb-4 border-b border-stone-200 pb-2">
                             <span className="text-[10px] uppercase tracking-widest text-stone-400 font-sans">
-                                J'ai pensé à toi
+                                J&apos;ai pensé à toi
                             </span>
                             {justSaved && (
                                 <motion.div
@@ -262,6 +300,38 @@ export default function InteractiveFlipCard({
                                         </span>
                                     )}
                                 </div>
+                            )}
+                        </div>
+
+                        {/* Views breakdown & quick gaze button */}
+                        <div className="mt-3 pt-2 border-t border-stone-200/80 flex flex-col items-center gap-1.5">
+                            <div className="flex items-center gap-2 text-[11px] text-stone-600 font-sans">
+                                <span className="font-semibold text-amber-700">👑 Steph : {parsed.stephane_views_count}</span>
+                                <span className="text-stone-300">•</span>
+                                <span className="font-semibold text-pink-700">🌸 Caro : {parsed.caroline_views_count}</span>
+                                <span className={`text-[9px] px-1.5 py-0.5 rounded-full border ${affection.bgBadge} font-bold`}>
+                                    {affection.emoji} {affection.label}
+                                </span>
+                            </div>
+                            {user && (
+                                <button
+                                    type="button"
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        const { newCaption } = incrementMemoryView(memory.caption, user, fallbackQuote);
+                                        updateMemory.mutate({
+                                            id: memory.id,
+                                            caption: newCaption,
+                                        });
+                                        setShowHeart(true);
+                                        setTimeout(() => setShowHeart(false), 1200);
+                                    }}
+                                    className="text-[10px] font-semibold text-[#8E5B5B] hover:text-[#5c3838] bg-white/80 hover:bg-white px-2.5 py-0.5 rounded-full border border-stone-200 transition active:scale-95 flex items-center gap-1 shadow-2xs cursor-pointer"
+                                >
+                                    <span>👀</span>
+                                    <span>Poser un regard d&apos;amour (+1)</span>
+                                </button>
                             )}
                         </div>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { getSupabase } from "@/lib/supabase";
@@ -18,10 +18,11 @@ import BottomNav from "@/components/BottomNav";
 import Toast from "@/components/Toast";
 import SlideshowOverlay from "@/components/SlideshowOverlay";
 import InteractiveFlipCard from "@/components/InteractiveFlipCard";
-import { Heart, HeartOff, Wand2, Search, Loader2, BookOpen, Music, Play, PlayCircle } from "lucide-react";
+import { Heart, HeartOff, Wand2, Search, Loader2, BookOpen, Music, Play, PlayCircle, Flame } from "lucide-react";
 import { extractYouTubeId, getYouTubeThumbnail } from "@/lib/youtube";
 import type { Memory, Soundtrack } from "@/lib/supabase";
 import { formatPhotoDate } from "@/lib/exifUtils";
+import { parseMemoryData, getTotalViews } from "@/lib/memoryNotes";
 
 type SelectionMode = "random" | "manual";
 type Tab = "flipbook" | "favorites" | "music" | "gallery";
@@ -41,6 +42,7 @@ export default function VaultPage() {
     const [search, setSearch] = useState("");
     const [showSearch, setShowSearch] = useState(false);
     const [showSlideshow, setShowSlideshow] = useState(false);
+    const [gallerySort, setGallerySort] = useState<"default" | "views" | "stephane" | "caroline" | "unseen">("default");
 
     const showToast = useCallback((message: string) => {
         setToast({ visible: true, message });
@@ -95,10 +97,26 @@ export default function VaultPage() {
     const unlockedMemories = memories.filter(isUnlocked);
     const unlockedShuffled = shuffledMemories.filter(isUnlocked);
 
-    // Gallery Logic: All memories matching search
-    const galleryMemories = search
-        ? memories.filter((m) => m.caption?.toLowerCase().includes(search.toLowerCase()))
-        : memories;
+    // Gallery Logic: All memories matching search with gamified sort
+    const galleryMemories = useMemo(() => {
+        const base = search
+            ? memories.filter((m) => m.caption?.toLowerCase().includes(search.toLowerCase()))
+            : memories;
+
+        if (gallerySort === "views") {
+            return [...base].sort((a, b) => getTotalViews(parseMemoryData(b.caption)) - getTotalViews(parseMemoryData(a.caption)));
+        }
+        if (gallerySort === "stephane") {
+            return [...base].sort((a, b) => (parseMemoryData(b.caption).stephane_views_count || 0) - (parseMemoryData(a.caption).stephane_views_count || 0));
+        }
+        if (gallerySort === "caroline") {
+            return [...base].sort((a, b) => (parseMemoryData(b.caption).caroline_views_count || 0) - (parseMemoryData(a.caption).caroline_views_count || 0));
+        }
+        if (gallerySort === "unseen") {
+            return base.filter((m) => getTotalViews(parseMemoryData(m.caption)) === 0);
+        }
+        return base;
+    }, [memories, search, gallerySort]);
 
     // General Logic:
     const displayMemories = search
@@ -447,7 +465,7 @@ export default function VaultPage() {
                                             <div className="text-center py-12 flex flex-col items-center">
                                                 <Heart className="size-12 text-pink-200 mb-4" />
                                                 <p className="text-muted-foreground text-sm">Pas encore de coups de cœur.</p>
-                                                <p className="text-xs text-muted-foreground/60 mt-2">Double-clique sur une photo du Flipbook pour l'ajouter ici.</p>
+                                                <p className="text-xs text-muted-foreground/60 mt-2">Double-clique sur une photo du Flipbook pour l&apos;ajouter ici.</p>
                                             </div>
                                         );
                                     }
@@ -532,9 +550,47 @@ export default function VaultPage() {
                                     <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">{filteredMemories.length} photos</span>
                                 </div>
 
-                                <p className="text-xs text-muted-foreground mb-4">
+                                <p className="text-xs text-muted-foreground mb-3">
                                     Accès direct à toutes les photos de la base de données. Tu peux aussi en choisir une pour demain !
                                 </p>
+
+                                {/* Gamified sort chips */}
+                                <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-1 custom-scrollbar">
+                                    <button
+                                        onClick={() => setGallerySort("default")}
+                                        className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition-all whitespace-nowrap ${gallerySort === "default" ? "bg-primary text-primary-foreground shadow-sm" : "bg-card/70 text-muted-foreground hover:text-foreground border border-white/20"}`}
+                                    >
+                                        Toutes ({memories.length})
+                                    </button>
+                                    <button
+                                        onClick={() => setGallerySort("views")}
+                                        className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition-all whitespace-nowrap flex items-center gap-1.5 ${gallerySort === "views" ? "bg-primary text-primary-foreground shadow-sm" : "bg-card/70 text-muted-foreground hover:text-foreground border border-white/20"}`}
+                                    >
+                                        <Flame className="size-3 text-amber-500 fill-amber-500" />
+                                        <span>Les plus regardées</span>
+                                    </button>
+                                    <button
+                                        onClick={() => setGallerySort("stephane")}
+                                        className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition-all whitespace-nowrap flex items-center gap-1.5 ${gallerySort === "stephane" ? "bg-primary text-primary-foreground shadow-sm" : "bg-card/70 text-muted-foreground hover:text-foreground border border-white/20"}`}
+                                    >
+                                        <span>👑</span>
+                                        <span>Préférées de Stéphane</span>
+                                    </button>
+                                    <button
+                                        onClick={() => setGallerySort("caroline")}
+                                        className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition-all whitespace-nowrap flex items-center gap-1.5 ${gallerySort === "caroline" ? "bg-primary text-primary-foreground shadow-sm" : "bg-card/70 text-muted-foreground hover:text-foreground border border-white/20"}`}
+                                    >
+                                        <span>🌸</span>
+                                        <span>Préférées de Caroline</span>
+                                    </button>
+                                    <button
+                                        onClick={() => setGallerySort("unseen")}
+                                        className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition-all whitespace-nowrap flex items-center gap-1.5 ${gallerySort === "unseen" ? "bg-primary text-primary-foreground shadow-sm" : "bg-card/70 text-muted-foreground hover:text-foreground border border-white/20"}`}
+                                    >
+                                        <span>✨</span>
+                                        <span>À redécouvrir</span>
+                                    </button>
+                                </div>
 
                                 {filteredMemories.length === 0 ? (
                                     <div className="text-center py-12">
@@ -549,9 +605,9 @@ export default function VaultPage() {
                                                     key={memory.id}
                                                     memory={memory}
                                                     className={`w-full ${masonryHeights[i % masonryHeights.length]}`}
-                                                    onClick={() => handleSetDailyPhoto(memory)}
+                                                    onClick={() => mode === "manual" && handleSetDailyPhoto(memory)}
                                                     selected={memory.is_daily_pick}
-                                                    enableSelection={true}
+                                                    enableSelection={mode === "manual"}
                                                 />
                                             ))}
                                         </div>
@@ -561,9 +617,9 @@ export default function VaultPage() {
                                                     key={memory.id}
                                                     memory={memory}
                                                     className={`w-full ${masonryHeights[(i + 3) % masonryHeights.length]}`}
-                                                    onClick={() => handleSetDailyPhoto(memory)}
+                                                    onClick={() => mode === "manual" && handleSetDailyPhoto(memory)}
                                                     selected={memory.is_daily_pick}
-                                                    enableSelection={true}
+                                                    enableSelection={mode === "manual"}
                                                 />
                                             ))}
                                         </div>

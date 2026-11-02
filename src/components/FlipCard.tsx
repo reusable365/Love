@@ -2,12 +2,12 @@
 
 import { useState, useRef, ReactNode } from "react";
 import { differenceInDays } from "date-fns";
-import { PenLine, Save, X } from "lucide-react";
+import { PenLine, Save, Eye } from "lucide-react";
 import LandscapePhoto from "./LandscapePhoto";
 import { Memory } from "@/lib/supabase";
 import { getQuoteForMemory } from "@/lib/quotes";
 
-import { parseMemoryData } from "@/lib/memoryNotes";
+import { parseMemoryData, getAffectionLevel, getTotalViews } from "@/lib/memoryNotes";
 import { CoupleUser } from "@/lib/useCoupleUser";
 
 interface FlipCardProps {
@@ -23,9 +23,10 @@ interface FlipCardProps {
     onDoubleTap?: (e: React.MouseEvent) => void;
     onFrontClick?: (e: React.MouseEvent) => void;
 
-    // Couple notes
+    // Couple notes & gamification
     activeUser?: CoupleUser | null;
     onSaveNote?: (note: string, partner: CoupleUser) => void;
+    onIncrementView?: () => void;
 }
 
 export function FlipCard({
@@ -39,7 +40,8 @@ export function FlipCard({
     onDoubleTap,
     onFrontClick,
     activeUser,
-    onSaveNote
+    onSaveNote,
+    onIncrementView,
 }: FlipCardProps) {
     const [isFlipped, setIsFlipped] = useState(false);
     const [editingPartner, setEditingPartner] = useState<CoupleUser | null>(null);
@@ -51,6 +53,8 @@ export function FlipCard({
     // Fallback quote
     const fallbackQuote = getQuoteForMemory(memory.id);
     const parsed = parseMemoryData(memory.caption, fallbackQuote);
+    const totalViews = getTotalViews(parsed);
+    const affection = getAffectionLevel(totalViews);
 
     // Start Date: 10 Feb 2002
     const startDate = new Date(2002, 1, 10);
@@ -307,6 +311,49 @@ export function FlipCard({
                                 </p>
                             )}
                         </div>
+                    </div>
+
+                    {/* Regards d'Amour (Gamified View Counters & Gaze Button) */}
+                    <div className="relative z-10 w-full max-w-sm rounded-2xl p-2.5 bg-black/40 backdrop-blur-md border border-white/10 flex flex-col gap-2 my-1 text-left">
+                        <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-white/80 flex items-center gap-1.5">
+                                <Eye size={12} className="text-primary" />
+                                Regards d&apos;amour
+                            </span>
+                            <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${affection.bgBadge}`}>
+                                {affection.emoji} {affection.label}
+                            </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 text-center">
+                            <div className="bg-white/5 rounded-xl py-1.5 px-2 border border-white/5 flex flex-col items-center">
+                                <span className="text-[10px] text-white/60 flex items-center gap-1">👑 Stéphane</span>
+                                <span className="text-sm font-bold text-amber-200">
+                                    {parsed.stephane_views_count} <span className="text-[10px] font-normal text-white/50">{parsed.stephane_views_count > 1 ? "regards" : "regard"}</span>
+                                </span>
+                            </div>
+                            <div className="bg-white/5 rounded-xl py-1.5 px-2 border border-white/5 flex flex-col items-center">
+                                <span className="text-[10px] text-white/60 flex items-center gap-1">🌸 Caroline</span>
+                                <span className="text-sm font-bold text-pink-200">
+                                    {parsed.caroline_views_count} <span className="text-[10px] font-normal text-white/50">{parsed.caroline_views_count > 1 ? "regards" : "regard"}</span>
+                                </span>
+                            </div>
+                        </div>
+
+                        {activeUser && onIncrementView && (
+                            <button
+                                type="button"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    justClickedPen.current = true;
+                                    onIncrementView();
+                                }}
+                                className="w-full py-1.5 px-3 rounded-xl bg-gradient-to-r from-primary/30 to-accent/30 hover:from-primary/50 hover:to-accent/50 border border-white/20 text-[11px] font-semibold text-white/95 flex items-center justify-center gap-1.5 transition active:scale-95 shadow-sm"
+                            >
+                                <span>👀</span>
+                                <span>Regarder ce souvenir avec amour (+1)</span>
+                            </button>
+                        )}
                     </div>
 
                     {/* Footer Journey */}

@@ -129,7 +129,32 @@ export function useUpdateMemory() {
                 .eq("id", id);
             if (error) throw error;
         },
-        onSuccess: () => {
+        onMutate: async ({ id, caption }) => {
+            await queryClient.cancelQueries({ queryKey: ["memories"] });
+            const previousMemories = queryClient.getQueryData<Memory[]>(["memories"]);
+            const previousDailyPick = queryClient.getQueryData<Memory | null>(["memories", "daily-pick"]);
+
+            queryClient.setQueryData<Memory[]>(["memories"], (old) => {
+                if (!old) return old;
+                return old.map((m) => (m.id === id ? { ...m, caption } : m));
+            });
+
+            queryClient.setQueryData<Memory | null>(["memories", "daily-pick"], (old) => {
+                if (!old || old.id !== id) return old;
+                return { ...old, caption };
+            });
+
+            return { previousMemories, previousDailyPick };
+        },
+        onError: (_err, _vars, context) => {
+            if (context?.previousMemories) {
+                queryClient.setQueryData(["memories"], context.previousMemories);
+            }
+            if (context?.previousDailyPick !== undefined) {
+                queryClient.setQueryData(["memories", "daily-pick"], context.previousDailyPick);
+            }
+        },
+        onSettled: () => {
             queryClient.invalidateQueries({ queryKey: ["memories"] });
         },
     });

@@ -20,12 +20,12 @@ import MusicPlayer from "@/components/MusicPlayer";
 import SlideshowOverlay from "@/components/SlideshowOverlay";
 import { FlipCard } from "@/components/FlipCard";
 import MagicalText from "@/components/MagicalText";
-import { Loader2, Heart, MapPin, Calendar, PlayCircle, Sparkles } from "lucide-react";
+import { Loader2, Heart, MapPin, Calendar, PlayCircle, Sparkles, Eye } from "lucide-react";
 import { differenceInDays } from "date-fns";
 import type { Memory, Soundtrack } from "@/lib/supabase";
 import { useCoupleUser } from "@/lib/useCoupleUser";
 import UserSelectionModal from "@/components/UserSelectionModal";
-import { parseMemoryData, serializeMemoryData } from "@/lib/memoryNotes";
+import { parseMemoryData, serializeMemoryData, incrementMemoryView } from "@/lib/memoryNotes";
 import ConfettiHearts from "@/components/ConfettiHearts";
 import { usePrecacheTomorrow } from "@/lib/precacheTomorrow";
 
@@ -116,15 +116,12 @@ export default function DailySurprisePage() {
   // Sync draft with photo caption
   useEffect(() => {
     if (photo?.caption) {
-      if (/.*\.(jpe?g|png|heic|webp|gif)$/i.test(photo.caption)) {
-        setCaptionDraft("");
-      } else {
-        setCaptionDraft(photo.caption);
-      }
+      const parsed = parseMemoryData(photo.caption);
+      setCaptionDraft(parsed.quote || "");
     } else {
       setCaptionDraft("");
     }
-  }, [photo]);
+  }, [photo?.caption]);
 
   // Midnight Watcher
   useEffect(() => {
@@ -148,7 +145,7 @@ export default function DailySurprisePage() {
     return parseMemoryData(photo?.caption);
   }, [photo?.caption]);
 
-  // Track active partner's first view of today's surprise
+  // Track active partner's view of today's surprise
   useEffect(() => {
     if (!photo || !user || !userLoaded) return;
     const todayStr = new Date().toLocaleDateString("fr-CA");
@@ -156,32 +153,63 @@ export default function DailySurprisePage() {
     const currentSeenAt = parsedMemory[userSeenKey];
     const isToday = currentSeenAt && new Date(currentSeenAt).toLocaleDateString("fr-CA") === todayStr;
 
-    if (!isToday) {
-      const updated = {
-        ...parsedMemory,
-        [userSeenKey]: new Date().toISOString(),
-      };
+    const cooldownKey = `love_view_${photo.id}_${user}`;
+    let shouldCount = false;
+    try {
+      const lastViewTs = localStorage.getItem(cooldownKey) || sessionStorage.getItem(cooldownKey);
+      const COOLDOWN_MS = 15 * 60 * 1000; // 15 min cooldown for passive views
+      if (!isToday) {
+        shouldCount = true;
+      } else if (lastViewTs && (Date.now() - Number(lastViewTs) > COOLDOWN_MS)) {
+        shouldCount = true;
+      }
+      if (shouldCount || !lastViewTs) {
+        try { localStorage.setItem(cooldownKey, String(Date.now())); } catch {}
+        try { sessionStorage.setItem(cooldownKey, String(Date.now())); } catch {}
+      }
+    } catch {
+      shouldCount = !isToday;
+    }
+
+    if (shouldCount) {
+      const { newCaption } = incrementMemoryView(photo.caption, user);
       updateMemory.mutate({
         id: photo.id,
-        caption: serializeMemoryData(updated),
+        caption: newCaption,
       });
     }
   }, [photo?.id, user, userLoaded]);
 
-  // Partner status badge on the card front
+  // Partner status badge on the card front (with view count)
   const partnerStatus = useMemo(() => {
     if (!otherUser) return null;
     const todayStr = new Date().toLocaleDateString("fr-CA");
     const seenAt = otherUser === "stephane" ? parsedMemory.stephane_seen_at : parsedMemory.caroline_seen_at;
+    const otherViews = otherUser === "stephane" ? parsedMemory.stephane_views_count : parsedMemory.caroline_views_count;
     const isToday = seenAt && new Date(seenAt).toLocaleDateString("fr-CA") === todayStr;
 
     if (isToday && seenAt) {
       const timeStr = new Date(seenAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
       const verb = otherUser === "caroline" ? "est passée" : "est passé";
-      return `${otherUserName} ${verb} à ${timeStr} 🩷`;
+      const gazeText = otherViews > 0 ? ` · ${otherViews} ${otherViews > 1 ? "regards" : "regard"}` : "";
+      return `${otherUserName} ${verb} à ${timeStr}${gazeText} 🩷`;
     }
     return `En attente de ${otherUserName}...`;
   }, [otherUser, otherUserName, parsedMemory]);
+
+  // Explicit gaze trigger (+1 Regard d'amour)
+  const handleIncrementGaze = useCallback(() => {
+    if (!photo || !user) return;
+    const { newCaption } = incrementMemoryView(photo.caption, user);
+    updateMemory.mutate({
+      id: photo.id,
+      caption: newCaption,
+    });
+    setShowHeart(true);
+    setTriggerCelebration(true);
+    setTimeout(() => setTriggerCelebration(false), 2500);
+    setTimeout(() => setShowHeart(false), 1200);
+  }, [photo, user, updateMemory]);
 
   // Save couple note callback
   const handleSaveCoupleNote = useCallback((noteText: string, partner: "stephane" | "caroline") => {
@@ -213,8 +241,15 @@ export default function DailySurprisePage() {
   const toggleMusic = () => setIsMusicPlaying(!isMusicPlaying);
 
   const handleSaveCaption = () => {
-    if (photo && captionDraft !== photo.caption) {
-      updateMemory.mutate({ id: photo.id, caption: captionDraft });
+    if (photo) {
+      const trimmed = captionDraft.trim();
+      if (trimmed !== (parsedMemory.quote || "")) {
+        const updated = {
+          ...parsedMemory,
+          quote: trimmed,
+        };
+        updateMemory.mutate({ id: photo.id, caption: serializeMemoryData(updated) });
+      }
     }
     setIsEditingCaption(false);
   };
@@ -349,6 +384,7 @@ export default function DailySurprisePage() {
               onDoubleTap={handleToggleFavorite}
               activeUser={user}
               onSaveNote={handleSaveCoupleNote}
+              onIncrementView={handleIncrementGaze}
             >
               {/* ═══ RECTO OVERLAY ═══ */}
 
@@ -391,6 +427,18 @@ export default function DailySurprisePage() {
                       <span className="text-xs">{otherUserEmoji}</span>
                       <span className="font-semibold text-[11px] text-white/95">
                         {partnerStatus}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Couple views count badge */}
+                {(parsedMemory.stephane_views_count > 0 || parsedMemory.caroline_views_count > 0) && (
+                  <div className="pointer-events-none animate-fade-in">
+                    <div className="flex items-center gap-1.5 bg-black/50 backdrop-blur-md rounded-full px-2.5 py-1 border border-white/20 text-white shadow-md text-[10px]">
+                      <Eye className="size-3 text-amber-300" />
+                      <span className="font-semibold text-white/95">
+                        👑 {parsedMemory.stephane_views_count} · 🌸 {parsedMemory.caroline_views_count}
                       </span>
                     </div>
                   </div>
